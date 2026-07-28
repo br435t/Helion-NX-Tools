@@ -8,11 +8,12 @@ recorded from NX as reference.
 
 ## Repository structure
 
-```
+```text
 Helion-NX-Tools/
 ├── NX-Scripts/                  Scripts run INSIDE NX (File → Execute → NX Open…)
-│   └── Create-McMaster-Part/    McMaster-Carr COTS part creator (+ its .dlx dialogs)
-│       └── README.md            How to set up and run the Create-McMaster-Part tool
+│   ├── Create-McMaster-Part/    McMaster-Carr COTS part creator (+ its .dlx dialogs)
+│   │   └── README.md            How to set up and run the Create-McMaster-Part tool
+│   └── Check-Part-Exists/       Diagnostic: is an item id already in Teamcenter?
 ├── Tools/                       External code run OUTSIDE NX (as a subprocess)
 │   └── scraper/                 McMaster-Carr Selenium scraper (vendored)
 ├── example_journals/            Journals RECORDED in NX, kept as reference only

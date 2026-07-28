@@ -5,7 +5,7 @@ a McMaster-Carr part number and it scrapes the product data, downloads the CAD,
 creates a `BE9_COTS` part in Teamcenter, and imports the geometry — prompting
 through BlockStyler dialogs along the way.
 
-The main tool is `NX-Scripts/Create-McMaster-Part/create_VENDOR_part.py` —
+The main tool is `NX-Scripts/Create-McMaster-Part/CREATE_MCMASTER_PART.py` —
 the McMaster/COTS flow (part number → scrape → create → import).
 
 ## Prerequisites
@@ -26,14 +26,14 @@ dependencies (works behind the corporate SSL proxy via `pip-system-certs`), and
 opens a browser so you can log in to McMaster once. Re-running it is safe.
 
 > `setup.bat` puts the environment in `.venv` at the repo root, and
-> `create_VENDOR_part.py` finds it automatically — no environment variables to
+> `CREATE_MCMASTER_PART.py` finds it automatically — no environment variables to
 > set. Pass `nologin` (`setup.bat nologin`) to skip the McMaster login step.
 
 ## Create a part
 
 
 1. Open **NX 2506** with a Teamcenter session.
-2. **File → Execute → NX Open…** → select `NX-Scripts/Create-McMaster-Part/create_VENDOR_part.py`.
+2. **File → Execute → NX Open…** → select `NX-Scripts/Create-McMaster-Part/CREATE_MCMASTER_PART.py`.
 3. Enter the **McMaster part number** when prompted.
 4. The tool scrapes the product data, downloads the no-threads Parasolid CAD to
    `C:\TEMP\MCMASTER`, and shows a **Part Name** dialog pre-filled with the
@@ -54,7 +54,7 @@ The repo is organized by where code runs:
 
 * `NX-Scripts/` — scripts the user runs **inside NX** (File → Execute → NX
   Open…). The main tool is
-  `NX-Scripts/Create-McMaster-Part/create_VENDOR_part.py` and its `.dlx`
+  `NX-Scripts/Create-McMaster-Part/CREATE_MCMASTER_PART.py` and its `.dlx`
   BlockStyler dialogs.
 * `Tools/` — external support code that runs **outside NX** (invoked by the
   NX scripts as a subprocess) — scrapers, shared logic, and future tools.
@@ -69,7 +69,7 @@ The repo is organized by where code runs:
 |----|----|
 | `setup.bat` | One-click setup: venv + dependencies + McMaster login. |
 | `requirements.txt` | Python deps for the Tools (Selenium + the corporate-SSL helper). Installed by `setup.bat`. |
-| `NX-Scripts/Create-McMaster-Part/create_VENDOR_part.py` | Main tool: part number → scrape → create COTS part → import CAD. |
+| `NX-Scripts/Create-McMaster-Part/CREATE_MCMASTER_PART.py` | Main tool: part number → scrape → create COTS part → import CAD. |
 | `NX-Scripts/Create-McMaster-Part/*.dlx` | BlockStyler dialogs for the flow (part number, part name). |
 | `Tools/scraper/` | Vendored McMaster-Carr scraper (Selenium). See `Tools/scraper/VENDORED.md`. |
 | `example_journals/` | Recorded NX journals used as reference (e.g. the working COTS-create). |
