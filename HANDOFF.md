@@ -36,15 +36,16 @@ An NX script finds the repo root by walking up, so it locates `Tools/` and
 
 | Path | Purpose |
 |------|---------|
-| `NX-Scripts/Create-McMaster-Part/create_VENDOR_part.py` | **Main tool.** Scraper-driven COTS flow: prompt for a part number → scrape JSON + download CAD → derive attributes → prompt for part name → create the `BE9_COTS` part → import the CAD. |
-| `NX-Scripts/Create-McMaster-Part/create_VENDOR_partno_dialog.dlx` | Single-field "Part Number" dialog (block id `partNo`) — step 1. |
-| `NX-Scripts/Create-McMaster-Part/create_VENDOR_partname_dialog.dlx` | Single-field "Part Name" dialog (block id `partName`) — prefilled with the description; sets `DB_PART_NAME`. |
+| `NX-Scripts/Create-McMaster-Part/CREATE_MCMASTER_PART.py` | **Main tool.** Scraper-driven COTS flow: prompt for a part number → scrape JSON + download CAD → derive attributes → prompt for part name → create the `BE9_COTS` part → import the CAD. |
+| `NX-Scripts/Create-McMaster-Part/CREATE_MCMASTER_PART_partno_dialog.dlx` | Single-field "Part Number" dialog (block id `partNo`) — step 1. |
+| `NX-Scripts/Create-McMaster-Part/CREATE_MCMASTER_PART_partname_dialog.dlx` | Single-field "Part Name" dialog (block id `partName`) — prefilled with the description; sets `DB_PART_NAME`. |
+| `NX-Scripts/Check-Part-Exists/check_part_exists.py` | Standalone diagnostic: checks whether an item id already exists in Teamcenter by trying `GetConfiguredRevisionOfItems` across several revision rules and printing which resolve it. Used to find the working rules for the main tool's pre-check. |
 | `Tools/scraper/` | Vendored copy of the McMaster-Carr scraper (`br435t/McMaster-scraper`). See `Tools/scraper/VENDORED.md`. Run as a subprocess, not imported into NX. |
 | `example_journals/journal_create_vendor_part.py` | Fresh **working** recording of the COTS create (creates `ID.A/Name`). Source of truth for the required attributes and the `SetAddMaster(False)` fix. |
 | `example_journals/journal_import_Parasolid.py` | Recorded File → Import → Parasolid journal the `import_parasolid()` helper was derived from. |
 | `.mcp.json` | Config for the `nxopen` MCP server (git-ignored). |
 
-## COTS / vendor parts (`create_VENDOR_part.py`)
+## COTS / vendor parts (`CREATE_MCMASTER_PART.py`)
 
 Creates a `BE9_COTS` item. Differs from the Design flow in three ways:
 
@@ -58,14 +59,16 @@ Creates a `BE9_COTS` item. Differs from the Design flow in three ways:
 
 This is the recorded journal wired to the scraper. `main()` does:
 
-1. **Prompt for a part number** (`create_VENDOR_partno_dialog.dlx`).
+1. **Prompt for a part number** (`CREATE_MCMASTER_PART_partno_dialog.dlx`).
+1b. **Existence pre-check** (`item_exists_in_teamcenter`) — abort early (before the
+   scrape) if the id already exists in Teamcenter. See gotcha #10.
 2. **`fetch_mcmaster(pn)`** — subprocess to the external scraper: `scrape --out
    C:\TEMP\MCMASTER` (writes `<pn>.json`) then `cad --out C:\TEMP\MCMASTER
    --json` (downloads the default 3-D Parasolid, **no-threads** `*.X_T`).
 3. **Derive attributes:** `part_no` = scraped `part_number`; `DB_PART_DESC` =
    `build_description()` = `title_primary` + `title_secondary`, concatenated and
    **UPPERCASED**; `HE_Manufacturer` = `"MCMASTER"`; `Part Class` = `"Class III"`.
-4. **Prompt for the part name** (`create_VENDOR_partname_dialog.dlx`), prefilled
+4. **Prompt for the part name** (`CREATE_MCMASTER_PART_partname_dialog.dlx`), prefilled
    with the description as an editable default → `DB_PART_NAME`.
 5. Run the File → New → Item body to create the `BE9_COTS` part
    (`SetAddMaster(False)`, empty naming map, `DB_PART_NO` as an attribute — see
@@ -78,12 +81,12 @@ This is the recorded journal wired to the scraper. `main()` does:
 Notes: a hard scrape failure aborts (the description depends on it); a CAD
 download failure is logged but non-fatal (and the Parasolid import is skipped). Output dir is `C:\TEMP\MCMASTER`
 (constant `MCMASTER_OUT`). Auto-login is left enabled, so an expired session
-pops a sign-in window. The scraper side (`fetch_mcmaster`/`build_description`)
-is live-tested; the dialogs + journal body still need a real NX run.
+pops a sign-in window. The full flow (dialogs, existence pre-check, create, and
+Parasolid import) is verified end to end in NX on a fresh part.
 
 ### McMaster scraper integration
 
-`create_VENDOR_part.py` shells out to the vendored `Tools/scraper/mcmaster_scraper.py`
+`CREATE_MCMASTER_PART.py` shells out to the vendored `Tools/scraper/mcmaster_scraper.py`
 to fetch property data by part number. **It runs the scraper as a subprocess in
 an external Python interpreter**, because the scraper needs Selenium + a real
 Edge browser, which are not available in NX's embedded Python.
@@ -105,7 +108,7 @@ Edge browser, which are not available in NX's embedded Python.
    `requirements.txt`, and caches the McMaster login).
 2. Open NX 2506 with a Teamcenter session active.
 3. **File → Execute → NX Open…** → select
-   `NX-Scripts/Create-McMaster-Part/create_VENDOR_part.py`.
+   `NX-Scripts/Create-McMaster-Part/CREATE_MCMASTER_PART.py`.
 4. Enter the McMaster part number. The tool scrapes the data, downloads the CAD,
    prompts for the part name, creates the `BE9_COTS` part, and imports the CAD;
    progress is logged to the Listing Window.
@@ -149,15 +152,36 @@ Edge browser, which are not available in NX's embedded Python.
      (`CreateAttributeTitleToNamingPatternMap([], [])` + `DB_PART_NO` via
      `AttributePropertiesBuilder`), and commits fine once `SetAddMaster(False)`
      is present.
-   Required attributes (all present in `create_VENDOR_part.py`): `DB_PART_NO`,
+   Required attributes (all present in `CREATE_MCMASTER_PART.py`): `DB_PART_NO`,
    `DB_PART_NAME`, `DB_PART_DESC` (category `BE9_COTS`); `HE_Manufacturer`,
    `Part Class` (category `BE9_COTSRevision`).
+10. **A duplicate item id is the *real* cause of "The new filename is not a valid
+   file specification" at `Commit()`.** The message is a red herring — it is NOT
+   about illegal filename characters (`/`, `"`) or the create call sequence.
+   `GetOperationFailures()` after `ValidateLogicalObjectsToCommit()` reveals the
+   truth: operation-failure **code 940519**, *"Cannot create a new revision of an
+   existing part using New. Use Save As for this operation."* The item already
+   exists in Teamcenter.
+   - **Pre-check:** `item_exists_in_teamcenter()` uses
+     `PdmSession.GetConfiguredRevisionOfItems` to resolve the id *before*
+     creating. This needs a **revision rule**: an empty rule resolves nothing
+     (false "not found"). The rules that work here are **`Latest Working`** and
+     **`Any Status; Working`**; `Latest Released` / `Precise` / `Latest` / empty
+     do **not** (verified via `check_part_exists.py`). The check returns True as
+     soon as one rule resolves the id.
+   - **Reading the failure:** `ErrorMessageHandler.GetErrorMessages()` returns
+     NULL for these PDM builders; use `GetOperationFailures()` →
+     `NXOpen.ErrorList` → `GetErrorInfo(i)` → `.ErrorCode` / `.Description`
+     instead. `_dump_pdm_errors()` in the tool wraps this.
 
 ## Status / open items
 
-- Prompt flow (BlockStyler dialog) and Teamcenter creation are wired up end to end.
-- **Verify in NX:** confirm the dialog loads and the part is created; the `.dlx`
-  was authored by hand and hasn't been round-tripped through Block UI Styler.
+- **Verified end to end in NX:** prompt flow, existence pre-check, Teamcenter
+  `BE9_COTS` creation, and Parasolid import all confirmed on a fresh part.
+  Creating an id that already exists is now caught up front (gotcha #10) instead
+  of failing cryptically at `Commit()`.
+- The `.dlx` dialogs were authored by hand and haven't been round-tripped through
+  Block UI Styler, but load and work in practice.
 - The created part is not explicitly **saved to Teamcenter** after `Commit()` (the
   recorded journal didn't either). If a DB save is needed, add it.
 - `part_class` is fixed at `"Class III"` — make it a dialog field if it should vary.

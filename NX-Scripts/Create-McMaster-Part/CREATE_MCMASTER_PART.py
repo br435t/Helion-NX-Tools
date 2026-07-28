@@ -34,8 +34,8 @@ _ROOT = _repo_root()
 
 # Single-field BlockStyler dialogs (part-number and part-name prompts). These
 # sit next to this script.
-_PARTNO_DLX = os.path.join(_HERE, "create_VENDOR_partno_dialog.dlx")
-_PARTNAME_DLX = os.path.join(_HERE, "create_VENDOR_partname_dialog.dlx")
+_PARTNO_DLX = os.path.join(_HERE, "CREATE_MCMASTER_PART_partno_dialog.dlx")
+_PARTNAME_DLX = os.path.join(_HERE, "CREATE_MCMASTER_PART_partname_dialog.dlx")
 
 # Vendored McMaster scraper (under Tools/ at the repo root) + output dir.
 _SCRAPER_SCRIPT = os.path.join(_ROOT, "Tools", "scraper", "mcmaster_scraper.py")
@@ -115,10 +115,19 @@ def _scraper_python():
       1. MCMASTER_SCRAPER_PYTHON environment variable
       2. the repo-root venv (<root>\\.venv\\Scripts\\python.exe)
       3. "python" on PATH
+
+    The env var is skipped when it points at a full path that no longer
+    exists (e.g. a stale value left over from a moved repo) so we fall through
+    to the repo-root .venv instead of hard-aborting. A bare command name
+    (no directory component, e.g. just "python") is trusted as-is since it is
+    resolved on PATH, not on disk.
     """
     env = os.environ.get("MCMASTER_SCRAPER_PYTHON")
     if env:
-        return env
+        has_dir = bool(os.path.dirname(env))
+        if not has_dir or os.path.exists(env):
+            return env
+        # else: stale/broken path -> ignore and fall through
     venv_py = os.path.join(_ROOT, ".venv", "Scripts", "python.exe")
     if os.path.exists(venv_py):
         return venv_py
@@ -215,11 +224,15 @@ def build_description(data):
 def make_filename_safe(name):
     """Sanitize a part name so NX can derive a valid part filename from it.
 
-    In Teamcenter managed mode NX builds the new part's filename from its name,
-    and Windows filenames cannot contain  < > : " / \\ | ? *  -- but McMaster
-    titles routinely use / and " (e.g. '1/4"-20'). Commit() otherwise fails with
-    "The new filename is not a valid file specification". The full, unmodified
-    text is still stored in the DB_PART_DESC attribute.
+    In Teamcenter managed mode NX derives the new part's filename from the part
+    name, and Windows filenames cannot contain  < > : " / \\ | ? *  -- but
+    McMaster titles routinely use / and " (e.g. '1/4"-20'). Applied to the part
+    NAME only ('"' -> 'in', '/' -> '-') as a precaution; the full, unmodified
+    text is preserved in the DB_PART_DESC attribute.
+
+    Note: the "The new filename is not a valid file specification" error chased
+    during development turned out to be a duplicate item-id collision (operation
+    failure 940519), not illegal characters -- see item_exists_in_teamcenter().
     """
     name = name.replace('"', 'in').replace('/', '-').replace('\\', '-')
     for bad in '<>:|?*':
@@ -244,6 +257,101 @@ def import_parasolid(the_session, input_file, curves=True, surfaces=True, solids
         importer.Destroy()
 
 
+# Revision rules used to resolve an item id when checking for existence.
+# An empty rule does NOT resolve existing parts here (verified via
+# check_part_exists.py); "Latest Working" catches unreleased parts and
+# "Any Status; Working" catches any status. If any rule resolves the id, the
+# part exists. Extend this list if a part is known to exist but isn't detected.
+_TC_EXISTENCE_REVISION_RULES = ("Latest Working", "Any Status; Working")
+
+
+def item_exists_in_teamcenter(the_session, item_id, log=None):
+    """Best-effort check whether an item id already exists in Teamcenter.
+
+    Uses PdmSession.GetConfiguredRevisionOfItems across a few revision rules
+    (see _TC_EXISTENCE_REVISION_RULES). Returns True as soon as one rule
+    resolves a revision for the id. Any other outcome -- id not found under any
+    rule, or an API error -- returns False so creation proceeds; a genuine
+    duplicate that slips through is then caught at Commit() (operation-failure
+    code 940519) and reported via _dump_pdm_errors(). Never raises.
+    """
+    _log = log or (lambda m: None)
+    try:
+        pdm = the_session.PdmSession
+        for rule in _TC_EXISTENCE_REVISION_RULES:
+            query = NXOpen.PDM.PdmSession.GetConfiguredRevisionInput()
+            query.ItemId = item_id
+            query.RevisionRuleName = rule
+            _errors, results = pdm.GetConfiguredRevisionOfItems([query])
+            for res in (results or []):
+                spec = (res.ItemRevisionCliSpec or "").strip()
+                if not res.HasFailed and spec:
+                    _log("  Teamcenter already has {0} (revision {1}, "
+                         "rule '{2}').".format(item_id, spec, rule))
+                    return True
+        return False
+    except Exception as ex:
+        _log("  existence pre-check inconclusive ({0}); relying on "
+             "commit-time validation.".format(ex))
+        return False
+
+
+def _dump_pdm_errors(builder, lw, label):
+    """Print the PDM builder's error/warning messages to the Listing Window.
+
+    The generic "not a valid file specification" NXException hides the real
+    per-object failure; ErrorMessageHandler.GetErrorMessages() and
+    GetOperationFailures() carry the specifics. Best-effort — never raises.
+    """
+    try:
+        handler = builder.GetErrorMessageHandler(True)
+        try:
+            errs = list(handler.GetErrorMessages() or [])
+            warns = list(handler.GetWarningMessages() or [])
+        finally:
+            handler.Dispose()
+        for m in errs:
+            lw.WriteLine("  [{0}] ERROR:   {1}".format(label, m))
+        for m in warns:
+            lw.WriteLine("  [{0}] warning: {1}".format(label, m))
+        if not errs and not warns:
+            lw.WriteLine("  [{0}] (no PDM messages)".format(label))
+    except Exception as ex:
+        lw.WriteLine("  [{0}] could not read PDM messages: {1}".format(label, ex))
+    # Structured operation-failure list (NXOpen.ErrorInfo: ErrorCode +
+    # Description + ErrorObjectDescription). This is the reliable channel --
+    # GetErrorMessages() tends to return NULL for these PDM builders.
+    try:
+        failures = builder.GetOperationFailures()
+        try:
+            count = failures.Length
+            for i in range(count):
+                info = failures.GetErrorInfo(i)
+                try:
+                    try:
+                        code = info.ErrorCode
+                    except Exception:
+                        code = "?"
+                    try:
+                        desc = info.Description
+                    except Exception:
+                        desc = "?"
+                    try:
+                        obj = info.ErrorObjectDescription
+                    except Exception:
+                        obj = ""
+                    lw.WriteLine("  [{0}] failure[{1}]: code={2} | {3}{4}".format(
+                        label, i, code, desc,
+                        (" | object: " + obj) if obj else ""))
+                finally:
+                    info.Dispose()
+        finally:
+            failures.Dispose()
+    except Exception as ex:
+        lw.WriteLine("  [{0}] could not read operation failures: {1}".format(
+            label, ex))
+
+
 def main(args) :
 
     theSession  = NXOpen.Session.GetSession() #type: NXOpen.Session
@@ -252,7 +360,7 @@ def main(args) :
     lw = theSession.ListingWindow
     lw.Open()
     lw.WriteLine("=" * 60)
-    lw.WriteLine("Running create_VENDOR_part.py (McMaster -> Teamcenter COTS part)")
+    lw.WriteLine("Running CREATE_MCMASTER_PART.py (McMaster -> Teamcenter COTS part)")
     lw.WriteLine("=" * 60)
 
     # --- 1. Ask for the McMaster part number ---
@@ -262,6 +370,20 @@ def main(args) :
         return
     if not entered_pn:
         lw.WriteLine("Cancelled: no part number entered.")
+        return
+
+    # --- 1b. Abort early if this part already exists in Teamcenter ---
+    # COTS item ids are the vendor part number (DB_PART_NO). Re-creating an
+    # existing id fails at Commit() with the opaque "The new filename is not a
+    # valid file specification"; catch it up front (before the scrape) instead.
+    lw.WriteLine("Checking Teamcenter for existing part {0} ...".format(entered_pn))
+    if item_exists_in_teamcenter(theSession, entered_pn, log=lw.WriteLine):
+        NXOpen.UI.GetUI().NXMessageBox.Show(
+            "Part Already Exists",
+            NXOpen.NXMessageBox.DialogType.Warning,
+            "Part {0} already exists in Teamcenter.\n\n"
+            "Creation was cancelled to avoid a duplicate item.".format(entered_pn))
+        lw.WriteLine("Aborted: {0} already exists in Teamcenter.".format(entered_pn))
         return
 
     # --- 2. Scrape JSON + download the no-threads Parasolid CAD ---
@@ -294,7 +416,7 @@ def main(args) :
     part_desc = build_description(data)          # title_primary + secondary, UPPER
     manufacturer = "MCMASTER"                    # hardcoded
     part_class = "Class III"                     # hardcoded
-    lw.WriteLine("  Description: {0}".format(make_filename_safe(part_desc)))
+    lw.WriteLine("  Description: {0}".format(part_desc))
 
     # --- 4. Ask the user for the part name (DB_PART_NAME), prefilled with the
     #        description as an editable default ---
@@ -315,19 +437,30 @@ def main(args) :
     lw.WriteLine("  Name       : {0}".format(part_name))
 
     lw.WriteLine("Creating COTS part {0} ...".format(part_no))
+
     # --- 5. Create the BE9_COTS item (File > New > Item) ---
+    #
+    # This block is a faithful transcription of the working recorded journal
+    # (example_journals/journal_create_vendor_part.py). The exact call order
+    # matters: NX derives the new part's on-disk filename during Commit(), and
+    # deviating from the recording (single-pass creation, skipping the fileNew
+    # re-sets or the extra CreateLogicalObjects) produces "The new filename is
+    # not a valid file specification". Keep this in lockstep with the recording.
+    def _configure_filenew(fn):
+        fn.TemplateFileName = "@DB/model-plain-1-inch-template/A"
+        fn.UseBlankTemplate = False
+        fn.ApplicationName = "ModelTemplate"
+        fn.Units = NXOpen.Part.Units.Inches
+        fn.RelationType = "master"
+        fn.UsesMasterModel = "No"                  # NOTE: string, not bool
+        fn.TemplateType = NXOpen.FileNewTemplateType.Item
+        fn.TemplatePresentationName = "Model"
+        fn.ItemType = "BE9_Design,BE9_Electrical,BE9_COTS,BE9_Tooling"
+        fn.Specialization = ""
+        fn.SetCanCreateAltrep(False)
+
     fileNew = theSession.Parts.FileNew()
-    fileNew.TemplateFileName = "@DB/model-plain-1-inch-template/A"
-    fileNew.UseBlankTemplate = False
-    fileNew.ApplicationName = "ModelTemplate"
-    fileNew.Units = NXOpen.Part.Units.Inches
-    fileNew.RelationType = "master"
-    fileNew.UsesMasterModel = "No"                 # NOTE: string, not bool
-    fileNew.TemplateType = NXOpen.FileNewTemplateType.Item
-    fileNew.TemplatePresentationName = "Model"
-    fileNew.ItemType = "BE9_Design,BE9_Electrical,BE9_COTS,BE9_Tooling"
-    fileNew.Specialization = ""
-    fileNew.SetCanCreateAltrep(False)
+    _configure_filenew(fileNew)
 
     opBuilder = theSession.PdmSession.CreateCreateOperationBuilder(
         NXOpen.PDM.PartOperationBuilder.OperationType.Create)
@@ -335,57 +468,84 @@ def main(args) :
     opBuilder.SetOperationSubType(
         NXOpen.PDM.PartOperationCreateBuilder.OperationSubType.FromTemplate)
     opBuilder.SetModelType("master")
+
+    # Phase 1: create the logical objects as the dialog default type
+    # (BE9_Design), set the destination folder, then re-assert the sub-type --
+    # exactly as the recording does before switching to COTS.
+    opBuilder.SetItemType("BE9_Design")
+    opBuilder.CreateLogicalObjects()
+    opBuilder.DefaultDestinationFolder = MCMASTER_TC_FOLDER
+    opBuilder.SetOperationSubType(
+        NXOpen.PDM.PartOperationCreateBuilder.OperationSubType.FromTemplate)
+
+    # Phase 2: re-apply the fileNew settings, switch to BE9_COTS with no master,
+    # and recreate the logical objects. The recording calls CreateLogicalObjects
+    # a second time after grabbing the source objects; preserve that extra call.
+    _configure_filenew(fileNew)
     opBuilder.SetAddMaster(False)
     opBuilder.SetItemType("BE9_COTS")
-    opBuilder.DefaultDestinationFolder = MCMASTER_TC_FOLDER
-
     logicalObjects = opBuilder.CreateLogicalObjects()
     sourceObjects = logicalObjects[0].GetUserAttributeSourceObjects()
+    opBuilder.CreateLogicalObjects()
 
     # COTS parts are not auto-numbered: register an empty naming map (the part
-    # number is set below as the DB_PART_NO attribute). This matches the working
-    # recorded journal (journal_create_vendorpart.py).
+    # number is set below as the DB_PART_NO attribute).
     namingMap = opBuilder.CreateAttributeTitleToNamingPatternMap([], [])
     errorList = opBuilder.AutoAssignAttributesWithNamingPattern(
         [logicalObjects[0]], [namingMap])
     errorList.Dispose()
+    opBuilder.GetErrorMessageHandler(True)
 
     attrBuilder = theSession.AttributeManager.CreateAttributePropertiesBuilder(
         NXOpen.BasePart.Null, [],
         NXOpen.AttributePropertiesBuilder.OperationType.Create)
+    attrBuilder.SetAttributeObjects([])
     attrBuilder.SetAttributeObjects([sourceObjects[0]])
 
-    # Item-level attributes (category BE9_COTS).
-    attrBuilder.Category = "BE9_COTS"
+    # Item-level attributes (category BE9_COTS). Property-set order (Title,
+    # Category, StringValue) matches the recording.
     attrBuilder.Title = "DB_PART_NO"
+    attrBuilder.Category = "BE9_COTS"
     attrBuilder.StringValue = part_no
     attrBuilder.CreateAttribute()
 
     attrBuilder.Title = "DB_PART_NAME"
     attrBuilder.StringValue = part_name
+    attrBuilder.Category = "BE9_COTS"
     attrBuilder.CreateAttribute()
 
     attrBuilder.Title = "DB_PART_DESC"
+    attrBuilder.Category = "BE9_COTS"
     attrBuilder.StringValue = part_desc
     attrBuilder.CreateAttribute()
 
     # Revision-level attributes (category BE9_COTSRevision).
-    attrBuilder.Category = "BE9_COTSRevision"
     attrBuilder.Title = "HE_Manufacturer"
+    attrBuilder.Category = "BE9_COTSRevision"
     attrBuilder.StringValue = manufacturer
     attrBuilder.CreateAttribute()
 
     attrBuilder.Title = "Part Class"
     attrBuilder.StringValue = part_class
+    attrBuilder.Category = "BE9_COTSRevision"
     attrBuilder.CreateAttribute()
 
-    # Finalize and commit.
+    # Finalize and commit. The recording re-applies the fileNew settings once
+    # more here, right before validating and committing.
+    _configure_filenew(fileNew)
     fileNew.MasterFileName = ""
     fileNew.MakeDisplayedPart = True
     fileNew.DisplayPartOption = NXOpen.DisplayPartOption.AllowAdditional
     opBuilder.ValidateLogicalObjectsToCommit()
+    _dump_pdm_errors(opBuilder, lw, "after Validate")
     opBuilder.CreateSpecificationsForLogicalObjects([logicalObjects[0]])
-    fileNew.Commit()
+    _dump_pdm_errors(opBuilder, lw, "after CreateSpecs")
+    try:
+        fileNew.Commit()
+    except Exception as commit_ex:
+        lw.WriteLine("Commit() raised: {0}".format(commit_ex))
+        _dump_pdm_errors(opBuilder, lw, "after Commit failure")
+        raise
 
     workPart = theSession.Parts.Work
     displayPart = theSession.Parts.Display

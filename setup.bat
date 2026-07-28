@@ -85,7 +85,7 @@ echo.
 echo   To create a part:
 echo     1. Open NX 2506 with an active Teamcenter session.
 echo     2. File ^> Execute ^> NX Open...
-echo     3. Select:  %CD%\NX-Scripts\Create-McMaster-Part\create_VENDOR_part.py
+echo     3. Select:  %CD%\NX-Scripts\Create-McMaster-Part\CREATE_MCMASTER_PART.py
 echo ============================================================
 echo.
 pause
