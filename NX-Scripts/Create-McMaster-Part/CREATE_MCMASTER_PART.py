@@ -141,6 +141,26 @@ def _run_scraper(sub_args, timeout=300):
         universal_newlines=True, timeout=timeout)
 
 
+def _cad_failure_reason(proc):
+    """Human-readable reason a `cad ... --json` run failed.
+
+    With --json the scraper reports its own errors ("no CAD options found",
+    "no 'parasolid' (no threads) option for this part", "CAD control did not
+    render ...") as JSON on *stdout* and leaves stderr empty, so read stdout
+    first and only fall back to stderr / the bare exit code.
+    """
+    try:
+        message = (json.loads(proc.stdout) or {}).get("error")
+    except ValueError:
+        message = None
+    if message:
+        return message
+    stderr = (proc.stderr or "").strip()
+    if stderr:
+        return stderr
+    return "CAD download exited {0}".format(proc.returncode)
+
+
 def fetch_mcmaster(part_no, out_dir=MCMASTER_OUT, log=None):
     """Scrape property data (JSON) and download the no-threads Parasolid CAD.
 
@@ -151,10 +171,11 @@ def fetch_mcmaster(part_no, out_dir=MCMASTER_OUT, log=None):
 
     Returns a dict:
       {"data": <scraped dict or None>, "json_file": path or None,
-       "cad_file": path or None, "error": <hard error or None>,
-       "cad_error": <soft CAD error or None>}
-    A hard `error` means the JSON (and thus the description) is unavailable;
-    `cad_error` is non-fatal. Never raises.
+       "cad_file": path or None, "error": <scrape error or None>,
+       "cad_error": <CAD error or None>}
+    `error` means the JSON (and thus the description) is unavailable;
+    `cad_error` means no CAD model was downloaded. Both abort creation in
+    main() — see step 2b. Never raises.
     """
     result = {"data": None, "json_file": None, "cad_file": None,
               "error": None, "cad_error": None}  # type: dict
@@ -208,9 +229,10 @@ def fetch_mcmaster(part_no, out_dir=MCMASTER_OUT, log=None):
             result["cad_file"] = json.loads(cad_proc.stdout).get("file")
         except ValueError:
             result["cad_error"] = "could not parse CAD output"
+        if not result["cad_error"] and not result["cad_file"]:
+            result["cad_error"] = "CAD download reported no file"
     else:
-        result["cad_error"] = "CAD download exited {0}: {1}".format(
-            cad_proc.returncode, (cad_proc.stderr or "").strip())
+        result["cad_error"] = _cad_failure_reason(cad_proc)
     return result
 
 
@@ -406,10 +428,28 @@ def main(args) :
     data = fetched["data"]
     if fetched.get("json_file"):
         lw.WriteLine("  JSON: {0}".format(fetched["json_file"]))
-    if fetched.get("cad_file"):
-        lw.WriteLine("  CAD : {0}".format(fetched["cad_file"]))
-    elif fetched.get("cad_error"):
-        lw.WriteLine("  CAD download warning: {0}".format(fetched["cad_error"]))
+
+    # --- 2b. No CAD -> abort before anything is created ---
+    # The point of this tool is a COTS part WITH geometry. Creating the
+    # Teamcenter item first and only then discovering there is no CAD would
+    # leave an empty BE9_COTS item behind that has to be deleted by hand, so
+    # a missing CAD file aborts the whole run here instead.
+    cad_file = fetched.get("cad_file")
+    if not cad_file or not os.path.exists(cad_file):
+        reason = fetched.get("cad_error") or "no CAD file was downloaded"
+        if cad_file and not os.path.exists(cad_file):
+            reason = "downloaded CAD file is missing: {0}".format(cad_file)
+        NXOpen.UI.GetUI().NXMessageBox.Show(
+            "No CAD Available",
+            NXOpen.NXMessageBox.DialogType.Error,
+            "No CAD model could be downloaded for part {0}.\n\n"
+            "{1}\n\n"
+            "Nothing was created in Teamcenter. Check the part number on "
+            "mcmaster.com — some items (e.g. raw stock or bulk goods) have "
+            "no 3-D Parasolid model.".format(entered_pn, reason))
+        lw.WriteLine("Aborted: no CAD for {0} ({1}).".format(entered_pn, reason))
+        return
+    lw.WriteLine("  CAD : {0}".format(cad_file))
 
     # --- 3. Derive attribute values ---
     part_no = (data.get("part_number") or entered_pn).strip()
@@ -555,14 +595,12 @@ def main(args) :
     attrBuilder.Destroy()
 
     # --- 6. Import the downloaded Parasolid geometry into the new part ---
-    cad_file = fetched.get("cad_file")
-    if cad_file and os.path.exists(cad_file):
-        lw.WriteLine("Running Parasolid import (import_parasolid)")
-        lw.WriteLine("  > {0}".format(cad_file))
-        import_parasolid(theSession, cad_file)
-        lw.WriteLine("  imported geometry into {0}.".format(workPart.Leaf))
-    else:
-        lw.WriteLine("No CAD file available; skipped Parasolid import.")
+    # cad_file is guaranteed present here: a missing CAD aborted the run in
+    # step 2b, before the part was created.
+    lw.WriteLine("Running Parasolid import (import_parasolid)")
+    lw.WriteLine("  > {0}".format(cad_file))
+    import_parasolid(theSession, cad_file)
+    lw.WriteLine("  imported geometry into {0}.".format(workPart.Leaf))
 
     theSession.CleanUpFacetedFacesAndEdges()
 
