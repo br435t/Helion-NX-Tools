@@ -65,6 +65,11 @@ This is the recorded journal wired to the scraper. `main()` does:
 2. **`fetch_mcmaster(pn)`** — subprocess to the external scraper: `scrape --out
    C:\TEMP\MCMASTER` (writes `<pn>.json`) then `cad --out C:\TEMP\MCMASTER
    --json` (downloads the default 3-D Parasolid, **no-threads** `*.X_T`).
+2b. **No-CAD abort** — if no `*.X_T` was downloaded (part has no 3-D model,
+   no no-threads Parasolid variant, download failed), show an error message box
+   and abort **before** creating anything. Aborting here rather than at the
+   import step avoids leaving an empty `BE9_COTS` item in Teamcenter that has to
+   be deleted by hand.
 3. **Derive attributes:** `part_no` = scraped `part_number`; `DB_PART_DESC` =
    `build_description()` = `title_primary` + `title_secondary`, concatenated and
    **UPPERCASED**; `HE_Manufacturer` = `"MCMASTER"`; `Part Class` = `"Class III"`.
@@ -74,12 +79,12 @@ This is the recorded journal wired to the scraper. `main()` does:
    (`SetAddMaster(False)`, empty naming map, `DB_PART_NO` as an attribute — see
    gotcha #9).
 6. **Import the downloaded Parasolid** (`import_parasolid()`) into the newly
-   created work part — using the actual `*.X_T` path from step 2, guarded so it
-   is skipped if the CAD download failed. Import happens after `Commit()`
-   because the part must exist first.
+   created work part — using the actual `*.X_T` path from step 2. Import happens
+   after `Commit()` because the part must exist first; the file is guaranteed to
+   be there because step 2b aborted otherwise.
 
-Notes: a hard scrape failure aborts (the description depends on it); a CAD
-download failure is logged but non-fatal (and the Parasolid import is skipped). Output dir is `C:\TEMP\MCMASTER`
+Notes: a scrape failure aborts (the description depends on it) and so does a
+missing CAD file (step 2b). Output dir is `C:\TEMP\MCMASTER`
 (constant `MCMASTER_OUT`). Auto-login is left enabled, so an expired session
 pops a sign-in window. The full flow (dialogs, existence pre-check, create, and
 Parasolid import) is verified end to end in NX on a fresh part.
@@ -98,9 +103,12 @@ Edge browser, which are not available in NX's embedded Python.
   `requirements.txt` behind the corporate proxy, and runs the
   McMaster `login` to cache the session).
 - `fetch_mcmaster()` returns a dict with `data` / `json_file` / `cad_file` and
-  `error` / `cad_error`; it never raises. A hard scrape error aborts creation
-  (the description depends on it); a CAD-download error is non-fatal (the
-  Parasolid import is just skipped).
+  `error` / `cad_error`; it never raises. Either error aborts creation: the
+  scrape supplies the description, and a part with no CAD has nothing to import.
+  Note the scraper writes its `cad --json` errors to **stdout**, not stderr, so
+  `_cad_failure_reason()` reads stdout first to get a usable message
+  (e.g. "no 'parasolid' (no threads) option for this part") instead of a bare
+  exit code.
 
 ## How to run
 

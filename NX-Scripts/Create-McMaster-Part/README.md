@@ -82,6 +82,9 @@ An NX script locates the repo root by walking up the folder tree, so it finds
 ## Notes
 
 * Targets **Teamcenter managed mode** (not native/filesystem mode).
+* If the part has **no downloadable CAD** (some raw stock and bulk items have no
+  3-D Parasolid model), the tool reports it and stops — nothing is created in
+  Teamcenter, so there is no empty part to clean up afterwards.
 * The scraper needs a McMaster login (cached in a dedicated Edge profile). If the
   session expires, the tool opens a sign-in window automatically.
 * See `HANDOFF.md` for the full list of NX Open / Teamcenter gotchas.
