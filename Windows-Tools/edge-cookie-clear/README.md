@@ -46,3 +46,12 @@ powershell -ExecutionPolicy Bypass -File .\clear_Edge-TC-cookies.ps1 -NoRestart
 Double-click `install_schedule.bat` (no admin rights needed). It creates a per-user scheduled task, `Clear Edge TC Cookies`, that runs the script daily at 12:00 AM with `-NoRestart`, and runs a missed job when the PC is next available. The task only runs while you are logged in.
 
 To remove it, run `install_schedule.bat remove`.
+
+## Recommended Edge setting: restore tabs after the forced close
+
+The script force-closes Edge, so set Edge to reopen your tabs on the next launch:
+
+1. Open `edge://settings/?search=tabs`
+2. Under **Start, home, and new tab page > On startup**, select **Open tabs from the previous session**.
+
+Your tabs then come back whenever Edge is relaunched (by the script, or manually after a `-NoRestart` run).
