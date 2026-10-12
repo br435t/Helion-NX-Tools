@@ -34,7 +34,7 @@ Helion-NX-Tools/
 | Folder | Runs | Contents |
 |--------|------|----------|
 | [NX-Scripts/](NX-Scripts/) | Inside NX (File → Execute → NX Open…) | The tools NX operators actually run, each in its own folder alongside its `.dlx` BlockStyler dialogs. |
-| [lib/](lib/) | Inside NX (imported by the NX scripts) | Helpers the NX scripts call: `mcmaster.py` (scraper wrapper, description/filename helpers), `teamcenter.py` (existence check, COTS create, Parasolid import), `nx_dialogs.py` (BlockStyler prompts), and `scraper/` (the Selenium scraper, run as an external subprocess since NX's embedded Python can't drive Edge). Scripts keep only the user-facing flow. |
+| [lib/](lib/) | Inside NX (imported by the NX scripts) | Helpers the NX scripts call: `mcmaster.py` (scraper wrapper, description/filename helpers), `teamcenter.py` (existence check, PDM error dump, Parasolid import), `vendor_part.py` (`create_vendor_part`, the BE9_COTS create), `nx_dialogs.py` (BlockStyler prompts), and `scraper/` (the Selenium scraper, run as an external subprocess since NX's embedded Python can't drive Edge). Scripts keep only the user-facing flow. |
 | [Windows-Tools/](Windows-Tools/) | Outside NX (run directly in Windows) | Standalone troubleshooting utilities for the NX / Teamcenter workstation. They don't use the `.venv` or the NX Open scripts. |
 | [example_journals/](example_journals/) | Not executed | Journals recorded via Tools → Journal → Record, kept for reverse-engineering NX Open calls. |
 

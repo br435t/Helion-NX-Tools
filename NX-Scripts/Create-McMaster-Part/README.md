@@ -42,8 +42,9 @@ opens a browser so you can log in to McMaster once. Re-running it is safe.
    Progress is written to the **Listing Window**.
 
 Attributes set: `DB_PART_NO` = part number, `DB_PART_NAME` = the name you
-confirm, `DB_PART_DESC` = product title (all caps), `HE_Manufacturer` =
-`MCMASTER`, `Part Class` = `Class III`.
+confirm (pre-filled with the product title, all caps), `HE_Manufacturer` =
+`MCMASTER`, `Part Class` = `Class III`. Creation is done by
+`create_vendor_part` in `lib/vendor_part.py`.
 
 Keep each script next to its `.dlx` dialog file(s); the scraper (`lib/scraper/`)
 and `.venv` are found automatically at the repo root.
@@ -85,8 +86,9 @@ An NX script locates the repo root by walking up the folder tree, so it finds
 
 * Targets **Teamcenter managed mode** (not native/filesystem mode).
 * If the part has **no downloadable CAD** (some raw stock and bulk items have no
-  3-D Parasolid model), the tool reports it and stops — nothing is created in
-  Teamcenter, so there is no empty part to clean up afterwards.
+  3-D Parasolid model, e.g. `5887K51`), the tool shows the reason and asks whether
+  to create the part **without geometry**. **No** stops with nothing created in
+  Teamcenter; **Yes** creates the part and skips the Parasolid import.
 * The scraper needs a McMaster login (cached in a dedicated Edge profile). If the
   session expires, the tool opens a sign-in window automatically.
 * See `HANDOFF.md` for the full list of NX Open / Teamcenter gotchas.
