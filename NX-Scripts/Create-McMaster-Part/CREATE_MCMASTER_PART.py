@@ -28,8 +28,9 @@ def _add_repo_root_to_path():
 _add_repo_root_to_path()
 
 from lib.mcmaster import MCMASTER_OUT, build_description, fetch_mcmaster, make_filename_safe  # noqa: E402
-from lib.nx_dialogs import prompt_string  # noqa: E402
-from lib.teamcenter import create_cots_part, import_parasolid, item_exists_in_teamcenter  # noqa: E402
+from lib.nx_dialogs import ask_yes_no, prompt_string  # noqa: E402
+from lib.teamcenter import MCMASTER_TC_FOLDER, import_parasolid, item_exists_in_teamcenter  # noqa: E402
+from lib.vendor_part import create_vendor_part  # noqa: E402
 
 # Single-field BlockStyler dialogs (part-number and part-name prompts). These
 # sit next to this script.
@@ -90,27 +91,31 @@ def main(args) :
     if fetched.get("json_file"):
         lw.WriteLine("  JSON: {0}".format(fetched["json_file"]))
 
-    # --- 2b. No CAD -> abort before anything is created ---
-    # The point of this tool is a COTS part WITH geometry. Creating the
-    # Teamcenter item first and only then discovering there is no CAD would
-    # leave an empty BE9_COTS item behind that has to be deleted by hand, so
-    # a missing CAD file aborts the whole run here instead.
+    # --- 2b. No CAD -> ask the user whether to continue ---
+    # Some items (raw stock, bulk goods, e.g. 5887K51) have no 3-D Parasolid
+    # model. Creating the Teamcenter item without geometry leaves an empty
+    # BE9_COTS item, so ask before going on; "No" aborts before anything is
+    # created. "Yes" creates the part and skips the geometry import (step 6).
     cad_file = fetched.get("cad_file")
     if not cad_file or not os.path.exists(cad_file):
         reason = fetched.get("cad_error") or "no CAD file was downloaded"
         if cad_file and not os.path.exists(cad_file):
             reason = "downloaded CAD file is missing: {0}".format(cad_file)
-        NXOpen.UI.GetUI().NXMessageBox.Show(
-            "No CAD Available",
-            NXOpen.NXMessageBox.DialogType.Error,
-            "No CAD model could be downloaded for part {0}.\n\n"
-            "{1}\n\n"
-            "Nothing was created in Teamcenter. Check the part number on "
-            "mcmaster.com — some items (e.g. raw stock or bulk goods) have "
-            "no 3-D Parasolid model.".format(entered_pn, reason))
-        lw.WriteLine("Aborted: no CAD for {0} ({1}).".format(entered_pn, reason))
-        return
-    lw.WriteLine("  CAD : {0}".format(cad_file))
+        lw.WriteLine("No CAD for {0}: {1}".format(entered_pn, reason))
+        if not ask_yes_no(
+                "No CAD Available",
+                "No CAD model could be downloaded for part {0}.\n\n"
+                "{1}\n\n"
+                "Create the part in Teamcenter WITHOUT geometry?\n\n"
+                "Yes = create an empty part (no CAD imported)\n"
+                "No  = cancel; nothing is created.".format(entered_pn, reason)):
+            lw.WriteLine("Aborted: no CAD for {0}; user declined to create "
+                         "an empty part.".format(entered_pn))
+            return
+        cad_file = None
+        lw.WriteLine("  Continuing without CAD (empty part will be created).")
+    else:
+        lw.WriteLine("  CAD : {0}".format(cad_file))
 
     # --- 3. Derive attribute values ---
     part_no = (data.get("part_number") or entered_pn).strip()
@@ -130,7 +135,7 @@ def main(args) :
         return
 
     # The part name becomes the part filename; strip illegal filename chars
-    # (the full description is preserved in DB_PART_DESC).
+    # (the DB_PART_DESC attribute is no longer set).
     safe_name = make_filename_safe(part_name)
     if safe_name != part_name:
         lw.WriteLine("  Part name sanitized for filename: {0}".format(safe_name))
@@ -139,16 +144,19 @@ def main(args) :
 
     # --- 5. Create the BE9_COTS item (File > New > Item) ---
     lw.WriteLine("Creating COTS part {0} ...".format(part_no))
-    workPart = create_cots_part(theSession, lw, part_no, part_name, part_desc,
-                                manufacturer, part_class)
+    workPart = create_vendor_part(part_no, part_name, manufacturer, part_class,
+                                  destination_folder=MCMASTER_TC_FOLDER, lw=lw)
 
     # --- 6. Import the downloaded Parasolid geometry into the new part ---
-    # cad_file is guaranteed present here: a missing CAD aborted the run in
-    # step 2b, before the part was created.
-    lw.WriteLine("Running Parasolid import (import_parasolid)")
-    lw.WriteLine("  > {0}".format(cad_file))
-    import_parasolid(theSession, cad_file)
-    lw.WriteLine("  imported geometry into {0}.".format(workPart.Leaf))
+    # cad_file is None when the user chose to create the part without CAD
+    # (step 2b); there is nothing to import in that case.
+    if cad_file:
+        lw.WriteLine("Running Parasolid import (import_parasolid)")
+        lw.WriteLine("  > {0}".format(cad_file))
+        import_parasolid(theSession, cad_file)
+        lw.WriteLine("  imported geometry into {0}.".format(workPart.Leaf))
+    else:
+        lw.WriteLine("  skipped Parasolid import (no CAD).")
 
     theSession.CleanUpFacetedFacesAndEdges()
 

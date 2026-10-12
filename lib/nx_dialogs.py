@@ -61,3 +61,15 @@ def prompt_string(dlx_path, block_id, default=None):
         return (captured.get("value") or "").strip()
     finally:
         dialog.Dispose()
+
+
+def ask_yes_no(title, message):
+    """Show a modal Yes/No question box; True if the user chose Yes.
+
+    NXMessageBox.Show returns the 1-based index of the clicked button; for
+    DialogType.Question the first button is Yes. Anything else (No, closing
+    the box) counts as No.
+    """
+    response = NXOpen.UI.GetUI().NXMessageBox.Show(
+        title, NXOpen.NXMessageBox.DialogType.Question, message)
+    return response == 1

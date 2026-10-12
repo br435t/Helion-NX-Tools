@@ -152,7 +152,7 @@ def make_filename_safe(name):
     name, and Windows filenames cannot contain  < > : " / \\ | ? *  -- but
     McMaster titles routinely use / and " (e.g. '1/4"-20'). Applied to the part
     NAME only ('"' -> 'in', '/' -> '-') as a precaution; the full, unmodified
-    text is preserved in the DB_PART_DESC attribute.
+    text is not preserved on the part (DB_PART_DESC is no longer set).
 
     Note: the "The new filename is not a valid file specification" error chased
     during development turned out to be a duplicate item-id collision (operation
