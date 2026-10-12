@@ -45,7 +45,7 @@ Attributes set: `DB_PART_NO` = part number, `DB_PART_NAME` = the name you
 confirm, `DB_PART_DESC` = product title (all caps), `HE_Manufacturer` =
 `MCMASTER`, `Part Class` = `Class III`.
 
-Keep each script next to its `.dlx` dialog file(s); the scraper (`Tools/scraper/`)
+Keep each script next to its `.dlx` dialog file(s); the scraper (`lib/scraper/`)
 and `.venv` are found automatically at the repo root.
 
 ## Repository layout
@@ -56,9 +56,10 @@ The repo is organized by where code runs:
   Open…). The main tool is
   `NX-Scripts/Create-McMaster-Part/CREATE_MCMASTER_PART.py` and its `.dlx`
   BlockStyler dialogs.
-* `Tools/` — external support code that runs **outside NX** (invoked by the
-  NX scripts as a subprocess) — scrapers, shared logic, and future tools.
-  Currently `Tools/scraper/` (the McMaster-Carr Selenium scraper).
+* `lib/` — shared helpers the NX scripts import (`mcmaster.py`, `teamcenter.py`,
+  `nx_dialogs.py`). NX scripts keep only the user-facing flow; everything they
+  call lives here. `lib/scraper/` is the McMaster-Carr Selenium scraper, run
+  **outside NX** as a subprocess.
 * `example_journals/` — journals **recorded in NX** (Tools → Journal →
   Record), kept as reference examples for reverse-engineering NX Open calls.
   Not executed directly.
@@ -68,16 +69,17 @@ The repo is organized by where code runs:
 | Path | Purpose |
 |----|----|
 | `setup.bat` | One-click setup: venv + dependencies + McMaster login. |
-| `requirements.txt` | Python deps for the Tools (Selenium + the corporate-SSL helper). Installed by `setup.bat`. |
+| `requirements.txt` | Python deps for the scraper (Selenium + the corporate-SSL helper). Installed by `setup.bat`. |
 | `NX-Scripts/Create-McMaster-Part/CREATE_MCMASTER_PART.py` | Main tool: part number → scrape → create COTS part → import CAD. |
 | `NX-Scripts/Create-McMaster-Part/*.dlx` | BlockStyler dialogs for the flow (part number, part name). |
-| `Tools/scraper/` | Vendored McMaster-Carr scraper (Selenium). See `Tools/scraper/VENDORED.md`. |
+| `lib/` | Shared helpers called by the NX scripts (scraper wrapper, Teamcenter create/check, dialogs). |
+| `lib/scraper/` | Vendored McMaster-Carr scraper (Selenium). See `lib/scraper/VENDORED.md`. |
 | `example_journals/` | Recorded NX journals used as reference (e.g. the working COTS-create). |
 | `.venv/` | Python venv with Selenium (created by `setup.bat`; git-ignored). |
 | `HANDOFF.md` | Deeper notes: key functions, gotchas, open items. |
 
 An NX script locates the repo root by walking up the folder tree, so it finds
-`Tools/` and `.venv/` regardless of how deep it sits under `NX-Scripts/`.
+`lib/` and `.venv/` regardless of how deep it sits under `NX-Scripts/`.
 
 ## Notes
 

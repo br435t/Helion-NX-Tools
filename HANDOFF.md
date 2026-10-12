@@ -21,15 +21,15 @@ create the `BE9_COTS` item with the imported geometry.
 Organized by where the code runs:
 
 - **`NX-Scripts/`** — scripts executed **inside NX** (File → Execute → NX Open…).
-- **`Tools/`** — external support code run **outside NX** as a subprocess
-  (scrapers, shared logic, future tools).
+- **`lib/`** — shared helpers the NX scripts import. `lib/scraper/` is external
+  code run **outside NX** as a subprocess.
 - **`example_journals/`** — journals **recorded in NX** (Tools → Journal →
   Record), kept as reference for reverse-engineering NX Open calls. Not run
   directly.
 - **Repo root** — `setup.bat`, `requirements.txt`, `.venv/` (git-ignored), and
   the docs.
 
-An NX script finds the repo root by walking up, so it locates `Tools/` and
+An NX script finds the repo root by walking up, so it locates `lib/` and
 `.venv/` no matter how deep it sits under `NX-Scripts/`.
 
 ### Files
@@ -40,7 +40,7 @@ An NX script finds the repo root by walking up, so it locates `Tools/` and
 | `NX-Scripts/Create-McMaster-Part/CREATE_MCMASTER_PART_partno_dialog.dlx` | Single-field "Part Number" dialog (block id `partNo`) — step 1. |
 | `NX-Scripts/Create-McMaster-Part/CREATE_MCMASTER_PART_partname_dialog.dlx` | Single-field "Part Name" dialog (block id `partName`) — prefilled with the description; sets `DB_PART_NAME`. |
 | `NX-Scripts/Check-Part-Exists/check_part_exists.py` | Standalone diagnostic: checks whether an item id already exists in Teamcenter by trying `GetConfiguredRevisionOfItems` across several revision rules and printing which resolve it. Used to find the working rules for the main tool's pre-check. |
-| `Tools/scraper/` | Vendored copy of the McMaster-Carr scraper (`br435t/McMaster-scraper`). See `Tools/scraper/VENDORED.md`. Run as a subprocess, not imported into NX. |
+| `lib/scraper/` | Vendored copy of the McMaster-Carr scraper (`br435t/McMaster-scraper`). See `lib/scraper/VENDORED.md`. Run as a subprocess, not imported into NX. |
 | `example_journals/journal_create_vendor_part.py` | Fresh **working** recording of the COTS create (creates `ID.A/Name`). Source of truth for the required attributes and the `SetAddMaster(False)` fix. |
 | `example_journals/journal_import_Parasolid.py` | Recorded File → Import → Parasolid journal the `import_parasolid()` helper was derived from. |
 | `.mcp.json` | Config for the `nxopen` MCP server (git-ignored). |
@@ -91,12 +91,12 @@ Parasolid import) is verified end to end in NX on a fresh part.
 
 ### McMaster scraper integration
 
-`CREATE_MCMASTER_PART.py` shells out to the vendored `Tools/scraper/mcmaster_scraper.py`
+`CREATE_MCMASTER_PART.py` shells out to the vendored `lib/scraper/mcmaster_scraper.py`
 to fetch property data by part number. **It runs the scraper as a subprocess in
 an external Python interpreter**, because the scraper needs Selenium + a real
 Edge browser, which are not available in NX's embedded Python.
 
-- Interpreter selection (`_scraper_python()`): `MCMASTER_SCRAPER_PYTHON` env var
+- Interpreter selection (`scraper_python()` in `lib/mcmaster.py`): `MCMASTER_SCRAPER_PYTHON` env var
   → the repo-root `.venv` (found by walking up from the script) → `python` on
   PATH. No env var needed if `.venv` exists — the script auto-detects it.
 - Setup (once): run `setup.bat` at the repo root (creates `.venv`, installs

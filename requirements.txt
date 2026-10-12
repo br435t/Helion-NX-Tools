@@ -13,5 +13,5 @@
 # the proxy blocks.)
 pip-system-certs
 
-# McMaster-Carr scraper (Tools/scraper) — browser automation via Selenium.
--r Tools/scraper/requirements.txt
+# McMaster-Carr scraper (lib/scraper) — browser automation via Selenium.
+-r lib/scraper/requirements.txt
