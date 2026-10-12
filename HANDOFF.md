@@ -166,7 +166,23 @@ Edge browser, which are not available in NX's embedded Python.
    - **Reading the failure:** `ErrorMessageHandler.GetErrorMessages()` returns
      NULL for these PDM builders; use `GetOperationFailures()` →
      `NXOpen.ErrorList` → `GetErrorInfo(i)` → `.ErrorCode` / `.Description`
-     instead. `_dump_pdm_errors()` in the tool wraps this.
+     instead. `dump_pdm_errors()` in `lib/teamcenter.py` wraps this.
+10. **BlockStyler string fields re-show the previous run's text (even after an NX
+   restart).** The Part Number dialog opened with the last Part Name
+   pre-fill (a product description) in its field instead of blank. Both `.dlx`
+   dialogs share the title "Create Vendor Part", and NX restores saved field
+   values **after** the initialize callback runs, so clearing only in
+   `AddInitializeHandler` did **not** stick. What was tried:
+   - Setting the string block's `RetainValue` property to `False` in both `.dlx`
+     files: kept (it made the part-name dialog open empty before its pre-fill),
+     but alone it was **not enough** for the Part Number field.
+   - Clearing/setting `Value` + `WideValue` in the initialize callback: not enough.
+   - **Fix that works:** also reset the field in an **`AddDialogShownHandler`**
+     callback, which fires once the dialog is on screen, after NX has restored
+     values. `prompt_string()` in `lib/nx_dialogs.py` calls the same `_reset()`
+     (set `default`, or `""`) from both callbacks.
+   - Diagnosing it needed before/after logging of `GetString("Value")` /
+     `("WideValue")` at each callback; that logging has since been removed.
 
 ## Status / open items
 

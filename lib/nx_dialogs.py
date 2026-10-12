@@ -6,7 +6,8 @@ def prompt_string(dlx_path, block_id, default=None):
     """Show a single-field string BlockStyler dialog and return its value.
 
     Returns the stripped field value, or None if the user cancels. If `default`
-    is given it is pre-filled into the field (editable by the user).
+    is given it is pre-filled into the field (editable by the user); otherwise
+    the field is cleared, so a value from a previous run never carries over.
 
     BlockStyler dialogs require callback handlers to be registered (NX errors
     with "The Initialize callback is not registered" otherwise), and block
@@ -16,16 +17,25 @@ def prompt_string(dlx_path, block_id, default=None):
     dialog = the_ui.CreateDialog(dlx_path)
     captured = {}
 
+    def _reset():
+        """Set the field to `default`, or clear it when there is none."""
+        text = default or ""
+        props = dialog.GetBlockProperties(block_id)
+        # Set both storages: a KeyIn field reads "Value", a Wide field
+        # reads "WideValue". Best-effort — never block the dialog.
+        for key in ("Value", "WideValue"):
+            try:
+                props.SetString(key, text)
+            except Exception:
+                pass
+
     def initialize_cb():
-        if default:
-            props = dialog.GetBlockProperties(block_id)
-            # Set both storages: a KeyIn field reads "Value", a Wide field
-            # reads "WideValue". Best-effort — never block the dialog.
-            for key in ("Value", "WideValue"):
-                try:
-                    props.SetString(key, default)
-                except Exception:
-                    pass
+        _reset()
+
+    def shown_cb():
+        # NX restores saved field values after initialize; reset again once
+        # the dialog is actually on screen so a previous run's text never shows.
+        _reset()
 
     def update_cb(block):
         return 0
@@ -50,6 +60,7 @@ def prompt_string(dlx_path, block_id, default=None):
         apply_cb()
 
     dialog.AddInitializeHandler(initialize_cb)
+    dialog.AddDialogShownHandler(shown_cb)
     dialog.AddUpdateHandler(update_cb)
     dialog.AddOkHandler(ok_cb)
     dialog.AddApplyHandler(apply_cb)
