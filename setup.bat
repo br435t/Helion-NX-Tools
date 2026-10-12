@@ -71,11 +71,11 @@ echo.
 REM --- 4. Log in to McMaster (opens Edge) ------------------------------
 if /i "%~1"=="nologin" (
   echo [4/4] Skipping McMaster login ^(nologin^). You can run it later with:
-  echo        .venv\Scripts\python.exe Tools\scraper\mcmaster_scraper.py login
+  echo        .venv\Scripts\python.exe lib\scraper\mcmaster_scraper.py login
 ) else (
   echo [4/4] Opening McMaster login - sign in when the browser appears.
   echo        ^(This is optional; the tool also prompts to log in on demand.^)
-  "%VENV_PY%" Tools\scraper\mcmaster_scraper.py login
+  "%VENV_PY%" lib\scraper\mcmaster_scraper.py login
 )
 echo.
 

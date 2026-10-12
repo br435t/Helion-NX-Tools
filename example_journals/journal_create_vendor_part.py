@@ -1,5 +1,5 @@
 ﻿# NX 2506
-# Journal created by br435t on Thu Jul 16 12:03:45 2026 Pacific Daylight Time
+# Journal created by br435t on Mon Oct 12 13:05:45 2026 Pacific Daylight Time
 #
 import math
 import NXOpen
@@ -52,7 +52,7 @@ def main(args) :
     
     sourceobjects1 = logicalobjects1[0].GetUserAttributeSourceObjects()
     
-    partOperationCreateBuilder1.DefaultDestinationFolder = ":MCMASTER"
+    partOperationCreateBuilder1.DefaultDestinationFolder = ":NX-TOOLS-DEBUG"
     
     sourceobjects2 = logicalobjects1[0].GetUserAttributeSourceObjects()
     
@@ -62,37 +62,11 @@ def main(args) :
     
     theSession.SetUndoMarkName(markId1, "New Dialog")
     
-    fileNew1.TemplateFileName = "@DB/model-plain-1-inch-template/A"
-    
-    fileNew1.UseBlankTemplate = False
-    
-    fileNew1.ApplicationName = "ModelTemplate"
-    
-    fileNew1.Units = NXOpen.Part.Units.Inches
-    
-    fileNew1.RelationType = "master"
-    
-    fileNew1.UsesMasterModel = "No"
-    
-    fileNew1.TemplateType = NXOpen.FileNewTemplateType.Item
-    
-    fileNew1.TemplatePresentationName = "Model"
-    
-    fileNew1.ItemType = "BE9_Design,BE9_Electrical,BE9_COTS,BE9_Tooling"
-    
-    fileNew1.Specialization = ""
-    
-    fileNew1.SetCanCreateAltrep(False)
-    
-    partOperationCreateBuilder1.SetAddMaster(False)
-    
     partOperationCreateBuilder1.SetItemType("BE9_COTS")
     
     logicalobjects2 = partOperationCreateBuilder1.CreateLogicalObjects()
     
     sourceobjects4 = logicalobjects2[0].GetUserAttributeSourceObjects()
-    
-    logicalobjects3 = partOperationCreateBuilder1.CreateLogicalObjects()
     
     attributetitles1 = []
     titlepatterns1 = []
@@ -121,7 +95,7 @@ def main(args) :
     
     attributePropertiesBuilder1.Category = "BE9_COTS"
     
-    attributePropertiesBuilder1.StringValue = "91310A532"
+    attributePropertiesBuilder1.StringValue = "vendor_pn"
     
     attributePropertiesBuilder1.Category = "BE9_COTS"
     
@@ -129,29 +103,29 @@ def main(args) :
     
     attributePropertiesBuilder1.Title = "DB_PART_NAME"
     
-    attributePropertiesBuilder1.StringValue = "High-Strength Class 10.9 Steel Hex Head Screw\nZinc-Plated, M8 x 1.25 mm Thread Size, 30 mm Long"
+    attributePropertiesBuilder1.StringValue = "vendor_description"
     
     attributePropertiesBuilder1.Category = "BE9_COTS"
     
     changed2 = attributePropertiesBuilder1.CreateAttribute()
     
-    attributePropertiesBuilder1.Title = "DB_PART_DESC"
-    
-    attributePropertiesBuilder1.Category = "BE9_COTS"
-    
-    changed3 = attributePropertiesBuilder1.CreateAttribute()
-    
     attributePropertiesBuilder1.Title = "HE_Manufacturer"
     
     attributePropertiesBuilder1.Category = "BE9_COTSRevision"
     
-    attributePropertiesBuilder1.StringValue = "MCMASTER"
+    attributePropertiesBuilder1.StringValue = "venor"
+    
+    attributePropertiesBuilder1.Category = "BE9_COTSRevision"
+    
+    changed3 = attributePropertiesBuilder1.CreateAttribute()
+    
+    attributePropertiesBuilder1.StringValue = "vendor_name"
     
     attributePropertiesBuilder1.Category = "BE9_COTSRevision"
     
     changed4 = attributePropertiesBuilder1.CreateAttribute()
     
-    attributePropertiesBuilder1.Title = "Part Class"
+    attributePropertiesBuilder1.Title = "Item:revision:ItemRevision:be9_PartClass"
     
     attributePropertiesBuilder1.StringValue = "Class III"
     
@@ -195,23 +169,79 @@ def main(args) :
     
     partOperationCreateBuilder1.ValidateLogicalObjectsToCommit()
     
-    logicalobjects4 = [NXOpen.PDM.LogicalObject.Null] * 1 
-    logicalobjects4[0] = logicalobjects2[0]
-    partOperationCreateBuilder1.CreateSpecificationsForLogicalObjects(logicalobjects4)
+    logicalobjects3 = [NXOpen.PDM.LogicalObject.Null] * 1 
+    logicalobjects3[0] = logicalobjects2[0]
+    partOperationCreateBuilder1.CreateSpecificationsForLogicalObjects(logicalobjects3)
     
     errorMessageHandler2 = partOperationCreateBuilder1.GetErrorMessageHandler(True)
     
     errorMessageHandler3 = partOperationCreateBuilder1.GetErrorMessageHandler(True)
     
-    nXObject2 = fileNew1.Commit()
-    
-    workPart = theSession.Parts.Work # 91310A532.A/High-Strength Class 10.9 Steel Hex Head Screw
-    Zinc-Plated, M8 x 1.25 mm Thread Size, 30 mm Long
-    displayPart = theSession.Parts.Display # 91310A532.A/High-Strength Class 10.9 Steel Hex Head Screw
-    Zinc-Plated, M8 x 1.25 mm Thread Size, 30 mm Long
-    errorMessageHandler4 = partOperationCreateBuilder1.GetErrorMessageHandler(True)
+    theSession.UndoToMarkWithStatus(markId3, None)
     
     theSession.DeleteUndoMark(markId3, None)
+    
+    attributePropertiesBuilder1.Title = "DB_PART_NO"
+    
+    attributePropertiesBuilder1.Category = "BE9_COTS"
+    
+    attributePropertiesBuilder1.StringValue = "vendor_part_number"
+    
+    attributePropertiesBuilder1.Category = "BE9_COTS"
+    
+    changed6 = attributePropertiesBuilder1.CreateAttribute()
+    
+    markId4 = theSession.SetUndoMark(NXOpen.Session.MarkVisibility.Invisible, "New")
+    
+    theSession.DeleteUndoMark(markId4, None)
+    
+    markId5 = theSession.SetUndoMark(NXOpen.Session.MarkVisibility.Invisible, "New")
+    
+    fileNew1.TemplateFileName = "@DB/model-plain-1-inch-template/A"
+    
+    fileNew1.UseBlankTemplate = False
+    
+    fileNew1.ApplicationName = "ModelTemplate"
+    
+    fileNew1.Units = NXOpen.Part.Units.Inches
+    
+    fileNew1.RelationType = "master"
+    
+    fileNew1.UsesMasterModel = "No"
+    
+    fileNew1.TemplateType = NXOpen.FileNewTemplateType.Item
+    
+    fileNew1.TemplatePresentationName = "Model"
+    
+    fileNew1.ItemType = "BE9_Design,BE9_Electrical,BE9_COTS,BE9_Tooling"
+    
+    fileNew1.Specialization = ""
+    
+    fileNew1.SetCanCreateAltrep(False)
+    
+    fileNew1.MasterFileName = ""
+    
+    fileNew1.MakeDisplayedPart = True
+    
+    fileNew1.DisplayPartOption = NXOpen.DisplayPartOption.AllowAdditional
+    
+    partOperationCreateBuilder1.ValidateLogicalObjectsToCommit()
+    
+    logicalobjects4 = [NXOpen.PDM.LogicalObject.Null] * 1 
+    logicalobjects4[0] = logicalobjects2[0]
+    partOperationCreateBuilder1.CreateSpecificationsForLogicalObjects(logicalobjects4)
+    
+    errorMessageHandler4 = partOperationCreateBuilder1.GetErrorMessageHandler(True)
+    
+    errorMessageHandler5 = partOperationCreateBuilder1.GetErrorMessageHandler(True)
+    
+    nXObject2 = fileNew1.Commit()
+    
+    workPart = theSession.Parts.Work # vendor_part_number.A/vendor_description
+    displayPart = theSession.Parts.Display # vendor_part_number.A/vendor_description
+    errorMessageHandler6 = partOperationCreateBuilder1.GetErrorMessageHandler(True)
+    
+    theSession.DeleteUndoMark(markId5, None)
     
     fileNew1.Destroy()
     
