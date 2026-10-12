@@ -27,6 +27,7 @@ def _add_repo_root_to_path():
 
 _add_repo_root_to_path()
 
+from lib.layers import move_to_layer  # noqa: E402
 from lib.mcmaster import MCMASTER_OUT, build_description, fetch_mcmaster, make_filename_safe  # noqa: E402
 from lib.nx_dialogs import ask_yes_no, prompt_string  # noqa: E402
 from lib.teamcenter import MCMASTER_TC_FOLDER, import_parasolid, item_exists_in_teamcenter  # noqa: E402
@@ -36,6 +37,9 @@ from lib.vendor_part import create_vendor_part  # noqa: E402
 # sit next to this script.
 _PARTNO_DLX = os.path.join(_HERE, "CREATE_MCMASTER_PART_partno_dialog.dlx")
 _PARTNAME_DLX = os.path.join(_HERE, "CREATE_MCMASTER_PART_partname_dialog.dlx")
+
+# Layer the imported geometry (all bodies) is moved to.
+_BODY_LAYER = 71
 
 
 def main(args) :
@@ -136,7 +140,7 @@ def main(args) :
 
     # The part name becomes the part filename; strip illegal filename chars
     # (the DB_PART_DESC attribute is no longer set).
-    safe_name = make_filename_safe(part_name)
+    safe_name = make_filename_safe(part_name).upper()  # all caps
     if safe_name != part_name:
         lw.WriteLine("  Part name sanitized for filename: {0}".format(safe_name))
     part_name = safe_name
@@ -155,6 +159,10 @@ def main(args) :
         lw.WriteLine("  > {0}".format(cad_file))
         import_parasolid(theSession, cad_file)
         lw.WriteLine("  imported geometry into {0}.".format(workPart.Leaf))
+
+        # --- 7. Move all bodies to layer 71 ---
+        moved = move_to_layer(_BODY_LAYER, part=workPart)
+        lw.WriteLine("  moved {0} body(ies) to layer {1}.".format(moved, _BODY_LAYER))
     else:
         lw.WriteLine("  skipped Parasolid import (no CAD).")
 

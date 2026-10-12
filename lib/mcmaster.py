@@ -151,14 +151,14 @@ def make_filename_safe(name):
     In Teamcenter managed mode NX derives the new part's filename from the part
     name, and Windows filenames cannot contain  < > : " / \\ | ? *  -- but
     McMaster titles routinely use / and " (e.g. '1/4"-20'). Applied to the part
-    NAME only ('"' -> 'in', '/' -> '-') as a precaution; the full, unmodified
+    NAME only ('"' -> 'IN', '/' -> '-') as a precaution; the full, unmodified
     text is not preserved on the part (DB_PART_DESC is no longer set).
 
     Note: the "The new filename is not a valid file specification" error chased
     during development turned out to be a duplicate item-id collision (operation
     failure 940519), not illegal characters -- see item_exists_in_teamcenter().
     """
-    name = name.replace('"', 'in').replace('/', '-').replace('\\', '-')
+    name = name.replace('"', 'IN').replace('/', '-').replace('\\', '-')
     for bad in '<>:|?*':
         name = name.replace(bad, '')
     return " ".join(name.split())  # collapse whitespace, trim ends
