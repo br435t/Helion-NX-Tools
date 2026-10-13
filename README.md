@@ -17,10 +17,8 @@ Helion-NX-Tools/
 ├── lib/                         Shared helpers the NX scripts import (mcmaster, teamcenter, dialogs)
 │   └── scraper/                 McMaster-Carr Selenium scraper (vendored; run OUTSIDE NX as a subprocess)
 ├── Windows-Tools/               Standalone Windows utilities (no NX or Python needed)
-│   ├── NX-TC-Cache-Clear/       Batch script: kill NX/Teamcenter and clear local caches
-│   │   └── README.md            What it clears and how to run it
-│   └── edge-cookie-clear/       PowerShell: clear Edge "local" cookies, optional nightly task
-│       └── README.md            Usage, options, and the midnight scheduler
+│   └── NX-TC-Cache-Clear/       Batch script: kill NX/Teamcenter and clear local caches
+│       └── README.md            What it clears and how to run it
 ├── example_journals/            Journals RECORDED in NX, kept as reference only
 ├── setup.bat                    One-click setup: .venv + dependencies + McMaster login
 ├── requirements.txt             Python deps for the scraper (installed by setup.bat)
@@ -54,9 +52,6 @@ the folder tree and adds it to `sys.path`, so it finds `lib/` and
 - **[NX-TC-Cache-Clear](Windows-Tools/NX-TC-Cache-Clear/README.md)** — batch
   script that stops NX and Teamcenter and clears their local caches when either
   is misbehaving.
-- **[edge-cookie-clear](Windows-Tools/edge-cookie-clear/README.md)** —
-  PowerShell script that deletes Edge cookies matching a filter (default
-  `local`), with `install_schedule.bat` to run it nightly at midnight.
 
 ## Getting started
 
