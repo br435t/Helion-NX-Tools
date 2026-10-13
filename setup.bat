@@ -29,15 +29,15 @@ if not defined PY (
   pause
   exit /b 1
 )
-echo [1/4] Python found:
+echo [1/5] Python found:
 %PY% --version
 echo.
 
 REM --- 2. Create the virtual environment -------------------------------
 if exist ".venv\Scripts\python.exe" (
-  echo [2/4] Virtual environment .venv already exists - reusing it.
+  echo [2/5] Virtual environment .venv already exists - reusing it.
 ) else (
-  echo [2/4] Creating virtual environment .venv ...
+  echo [2/5] Creating virtual environment .venv ...
   %PY% -m venv .venv
   if errorlevel 1 (
     echo [ERROR] Could not create the virtual environment.
@@ -53,7 +53,7 @@ REM  pip-system-certs makes pip trust the Windows cert store (the corporate
 REM  root CA lives there), so later installs verify normally. It is
 REM  bootstrapped with --trusted-host because that first install is what
 REM  the SSL interception blocks.
-echo [3/4] Installing dependencies ...
+echo [3/5] Installing dependencies ...
 "%VENV_PY%" -m pip install --disable-pip-version-check --trusted-host pypi.org --trusted-host files.pythonhosted.org --trusted-host pypi.python.org pip-system-certs
 if errorlevel 1 (
   echo [ERROR] Could not install pip-system-certs. See messages above.
@@ -68,12 +68,24 @@ if errorlevel 1 (
 )
 echo.
 
-REM --- 4. Log in to McMaster (opens Edge) ------------------------------
+REM --- 4. Extract the NX Open MCP server -------------------------------
+REM  NX_Open_MCP.zip -> MCP\ (git-ignored) and register it as the "nxopen"
+REM  MCP server in .mcp.json, run with the .venv python (which has `mcp`).
+echo [4/5] Setting up the NX Open MCP server ...
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0setup_mcp.ps1" -Root "%CD%" -VenvPython "%VENV_PY%"
+if errorlevel 1 (
+  echo [ERROR] Could not set up the NX Open MCP server. See messages above.
+  pause
+  exit /b 1
+)
+echo.
+
+REM --- 5. Log in to McMaster (opens Edge) ------------------------------
 if /i "%~1"=="nologin" (
-  echo [4/4] Skipping McMaster login ^(nologin^). You can run it later with:
+  echo [5/5] Skipping McMaster login ^(nologin^). You can run it later with:
   echo        .venv\Scripts\python.exe lib\scraper\mcmaster_scraper.py login
 ) else (
-  echo [4/4] Opening McMaster login - sign in when the browser appears.
+  echo [5/5] Opening McMaster login - sign in when the browser appears.
   echo        ^(This is optional; the tool also prompts to log in on demand.^)
   "%VENV_PY%" lib\scraper\mcmaster_scraper.py login
 )
@@ -86,6 +98,9 @@ echo   To create a part:
 echo     1. Open NX 2506 with an active Teamcenter session.
 echo     2. File ^> Execute ^> NX Open...
 echo     3. Select:  %CD%\NX-Scripts\Create-McMaster-Part\CREATE_MCMASTER_PART.py
+echo.
+echo   NX Open MCP: restart Claude Code in this folder so the "nxopen"
+echo   server ^(search_nxopen tool^) loads.
 echo ============================================================
 echo.
 pause

@@ -20,7 +20,10 @@ Helion-NX-Tools/
 │   └── NX-TC-Cache-Clear/       Batch script: kill NX/Teamcenter and clear local caches
 │       └── README.md            What it clears and how to run it
 ├── example_journals/            Journals RECORDED in NX, kept as reference only
-├── setup.bat                    One-click setup: .venv + dependencies + McMaster login
+├── setup.bat                    One-click setup: .venv + dependencies + NX Open MCP + McMaster login
+├── setup_mcp.ps1                Called by setup.bat: extracts NX_Open_MCP.zip and writes .mcp.json
+├── NX_Open_MCP.zip              NX Open API search MCP server (extracted to MCP/ by setup.bat)
+├── MCP/                         Extracted MCP server (git-ignored)
 ├── requirements.txt             Python deps for the scraper (installed by setup.bat)
 ├── .venv/                       Python virtual environment (git-ignored)
 ├── HANDOFF.md                   Deep notes: key functions, gotchas, open items
@@ -57,7 +60,10 @@ the folder tree and adds it to `sys.path`, so it finds `lib/` and
 
 1. Clone this repo to a local folder, e.g. `C:\Code\Helion-NX-Tools`.
 2. **Double-click** [setup.bat](setup.bat) — creates `.venv`, installs
-   dependencies (behind the corporate SSL proxy), and caches the McMaster login.
+   dependencies (behind the corporate SSL proxy), extracts the NX Open MCP
+   server (`NX_Open_MCP.zip` → `MCP/`, registered in `.mcp.json`), and caches the
+   McMaster login. Restart Claude Code in this folder afterwards so the `nxopen`
+   server loads.
 3. Follow the per-tool README under [NX-Scripts/](NX-Scripts/) to run a tool.
 
 ## More detail

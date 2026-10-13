@@ -12,7 +12,8 @@ create the `BE9_COTS` item with the imported geometry.
 - Custom Helion item types: `BE9_Design, BE9_Electrical, BE9_COTS, BE9_Tooling`
   (the part is created as `BE9_COTS`).
 - Default template: `@DB/model-plain-1-inch-template/A` (units = inches).
-- An `nxopen` MCP server (see `.mcp.json`) indexes the NX 2506 Python API and
+- An `nxopen` MCP server (shipped as `NX_Open_MCP.zip`; `setup.bat` extracts it to
+  the git-ignored `MCP/` and writes `.mcp.json` via `setup_mcp.ps1`) indexes the NX 2506 Python API and
   stubs — use it to look up signatures. **Note:** it does **not** index
   `NXOpen.UF` (that subsystem has no stubs on disk).
 
@@ -43,7 +44,7 @@ An NX script finds the repo root by walking up, so it locates `lib/` and
 | `lib/scraper/` | Vendored copy of the McMaster-Carr scraper (`br435t/McMaster-scraper`). See `lib/scraper/VENDORED.md`. Run as a subprocess, not imported into NX. |
 | `example_journals/journal_create_vendor_part.py` | Fresh **working** recording of the COTS create (creates `ID.A/Name`). Source of truth for the required attributes; `lib/vendor_part.py::create_vendor_part` is built from it. |
 | `example_journals/journal_import_Parasolid.py` | Recorded File → Import → Parasolid journal the `import_parasolid()` helper was derived from. |
-| `.mcp.json` | Config for the `nxopen` MCP server (git-ignored). |
+| `NX_Open_MCP.zip` / `MCP/` / `.mcp.json` | NX Open API MCP server: zip is committed; `setup.bat` extracts it to `MCP/` and writes `.mcp.json` (both git-ignored) pointing at `.venv` python. |
 
 ## COTS / vendor parts (`CREATE_MCMASTER_PART.py`)
 
