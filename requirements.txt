@@ -15,3 +15,6 @@ pip-system-certs
 
 # McMaster-Carr scraper (lib/scraper) — browser automation via Selenium.
 -r lib/scraper/requirements.txt
+
+# NX Open MCP server (MCP/, extracted from NX_Open_MCP.zip by setup.bat).
+mcp<2   # server uses the 1.x FastMCP API (2.x renamed it)

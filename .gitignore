@@ -21,3 +21,7 @@ Thumbs.db
 
 # MCP server config (local/machine-specific)
 .mcp.json
+
+# NX Open MCP server, extracted from NX_Open_MCP.zip by setup.bat
+MCP/
+MCP_extract_tmp/
