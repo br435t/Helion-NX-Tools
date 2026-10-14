@@ -1,0 +1,38 @@
+============================================================
+env_probe.py
+============================================================
+Script file   : C:\Code\Helion-NX-Tools\NX-Scripts\env_probe.py
+Script folder : C:\Code\Helion-NX-Tools\NX-Scripts
+  length      : 34 characters
+  non-ASCII   : False
+  has spaces  : False
+  UNC/network : False
+  OneDrive    : False
+Python        : 3.12.9
+Executable    : C:\SPLM\NX\NX2506\nxbin\ugraf.exe
+
+Environment (as NX sees it):
+  UGII_BASE_DIR = C:\SPLM\NX\NX2506
+  UGII_ROOT_DIR = C:\SPLM\NX\NX2506\ugii
+  UGII_PYTHON_HOME = (not set)
+  UGII_ENV_FILE = \\USANTPVWTCOR001\NXStore\NX_PROD_CUSTOM\NXcustom\NX2506library\NX_env.dat
+  UGII_CUSTOM_DIRECTORY_FILE = \\USANTPVWTCOR001\NXStore\NX_PROD_CUSTOM\NXcustom\NX2506library\custom_dirs.dat
+  UGII_USER_DIR = (not set)
+  UGII_USER_PROFILE_DIR = C:\Users\br435t\AppData\Local\Siemens\NX2506
+  PYTHONHOME = (not set)
+
+UGII_PYTHONPATH: (not set)
+
+PYTHONPATH: (not set)
+
+sys.path:
+   1. ok       C:\Code\Helion-NX-Tools\NX-Scripts
+   2. ok       C:\SPLM\NX\NX2506\nxbin\python
+   3. ok       C:\SPLM\NX\NX2506\nxbin\python\Python312.zip
+   4. ok       C:\SPLM\NX\NX2506\design_tools\checkmate\python
+   5. ok       C:\SPLM\NX\NX2506\automated_testing\python
+   6. ok       C:/Code/Helion-NX-Tools/NX-Scripts
+
+Repo root (folder containing lib/): C:\Code\Helion-NX-Tools
+============================================================
+

@@ -58,7 +58,11 @@ the folder tree and adds it to `sys.path`, so it finds `lib/` and
 
 ## Getting started
 
-1. Clone this repo to a local folder, e.g. `C:\Code\Helion-NX-Tools`.
+1. Clone (or extract) this repo to a **short, plain folder**, e.g.
+   `C:\Code\Helion-NX-Tools`. Avoid OneDrive, network drives, and paths with
+   spaces or special characters — NX can fail with *"Unable to append module
+   directory path in PYTHONPATH"* when a script is run from such a folder.
+   `setup.bat` warns if the folder looks risky.
 2. **Double-click** [setup.bat](setup.bat) — creates `.venv`, installs
    dependencies (behind the corporate SSL proxy), extracts the NX Open MCP
    server (`NX_Open_MCP.zip` → `MCP/`, registered in `.mcp.json`), and caches the
