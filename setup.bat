@@ -7,12 +7,73 @@ REM  (works behind the corporate SSL proxy), and logs in to
 REM  McMaster. Pass "nologin" to skip the McMaster login step.
 REM ============================================================
 setlocal enabledelayedexpansion
+set "HERE=%~dp0"
 cd /d "%~dp0"
 
 echo ============================================================
 echo   Create-McMaster-Part  -  one-click setup
 echo ============================================================
 echo.
+
+REM --- 0. Warn about install locations NX has trouble with ------------
+REM  NX reports "Unable to append module directory path in PYTHONPATH" when a
+REM  script is run from some folders. A short plain path such as
+REM  C:\Code\Helion-NX-Tools is known to work. This only warns; you can continue.
+set "W_SPACE="
+set "W_ONEDRIVE="
+set "W_UNC="
+set "W_ASCII="
+set "W_DOUBLE="
+if not "!HERE!"=="!HERE: =!" set "W_SPACE=1"
+echo !HERE! | findstr /i /c:"onedrive" >nul && set "W_ONEDRIVE=1"
+if "!HERE:~0,2!"=="\\" set "W_UNC=1"
+set "CHECK_PATH=!HERE!"
+powershell -NoProfile -Command "if ($env:CHECK_PATH -cmatch '[^\x00-\x7F]') { exit 1 }" >nul 2>&1
+if errorlevel 1 set "W_ASCII=1"
+REM  Doubled folder, e.g. Helion-NX-Tools\Helion-NX-Tools (zip extracted into a
+REM  same-named folder). Harmless to the scripts, but a sign of a messy extract.
+for %%I in ("!HERE!.") do set "CUR_NAME=%%~nxI"
+for %%I in ("!HERE!..") do set "PAR_NAME=%%~nxI"
+if /i "!CUR_NAME!"=="!PAR_NAME!" set "W_DOUBLE=1"
+if defined W_SPACE set "PATH_WARN=1"
+if defined W_ONEDRIVE set "PATH_WARN=1"
+if defined W_UNC set "PATH_WARN=1"
+if defined W_ASCII set "PATH_WARN=1"
+if defined W_DOUBLE set "PATH_WARN=1"
+if defined PATH_WARN (
+  echo [WARNING] This folder may not work with the NX scripts:
+  echo   !HERE!
+  echo.
+  if defined W_SPACE echo   - the path contains spaces
+  if defined W_ONEDRIVE echo   - the path is inside OneDrive
+  if defined W_UNC echo   - the path is a network ^(UNC^) location
+  if defined W_ASCII echo   - the path contains non-ASCII characters
+  if defined W_DOUBLE echo   - the repo folder is nested inside a folder with the same name
+  echo.
+  if defined W_SPACE set "NX_RISK=1"
+  if defined W_ONEDRIVE set "NX_RISK=1"
+  if defined W_UNC set "NX_RISK=1"
+  if defined W_ASCII set "NX_RISK=1"
+  if defined NX_RISK (
+    echo   NX can fail with "Unable to append module directory path in PYTHONPATH"
+    echo   when a script is run from a path like this.
+  )
+  if defined W_DOUBLE (
+    echo   A doubled folder ^(e.g. Helion-NX-Tools\Helion-NX-Tools^) usually means the zip
+    echo   was extracted into a same-named folder. It still works, but move the
+    echo   inner folder up one level to keep the path short.
+  )
+  echo   Recommended: move or re-extract the repo to a short plain folder, e.g.
+  echo   C:\Code\Helion-NX-Tools ^(not inside OneDrive, no spaces^), then run
+  echo   setup.bat again.
+  echo.
+  choice /c YN /t 20 /d Y /m "Continue setup here anyway (auto-continues in 20 seconds)"
+  if errorlevel 2 (
+    echo Setup cancelled.
+    exit /b 1
+  )
+  echo.
+)
 
 REM --- 1. Find a Python interpreter -------------------------------------
 set "PY="

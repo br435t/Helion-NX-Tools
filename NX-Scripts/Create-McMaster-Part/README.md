@@ -18,7 +18,12 @@ the McMaster/COTS flow (part number → scrape → create → import).
 ## One-click setup
 
 
-1. Download or clone this repo to a folder, e.g. `C:\Code\Create-McMaster-Part`.
+1. Download or clone this repo to a **short, plain folder**, e.g.
+   `C:\Code\Helion-NX-Tools` — not inside OneDrive, not on a network drive, and
+   with no spaces or special characters in the path. Otherwise NX can fail with
+   *"Unable to append module directory path in PYTHONPATH"* when you run a script.
+   If you downloaded the zip, make sure you don't end up with a doubled folder
+   (`Helion-NX-Tools-main\Helion-NX-Tools-main`) — move the inner folder out.
 2. **Double-click** `setup.bat`.
 
 That creates the Python virtual environment the scraper needs, installs its

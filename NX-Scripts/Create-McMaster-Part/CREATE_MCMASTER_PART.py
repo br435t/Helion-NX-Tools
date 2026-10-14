@@ -5,7 +5,7 @@
 # repo root (lib/mcmaster.py, lib/teamcenter.py, lib/nx_dialogs.py).
 import os
 import sys
-import NXOpen
+import NXOpen # type: ignore
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 
