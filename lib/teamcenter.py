@@ -32,15 +32,16 @@ def import_parasolid(the_session, input_file, curves=True, surfaces=True, solids
         importer.Destroy()
 
 
-def item_exists_in_teamcenter(the_session, item_id, log=None):
-    """Best-effort check whether an item id already exists in Teamcenter.
+def find_item_revision_spec(the_session, item_id, log=None):
+    """Return the Teamcenter spec of an existing item's revision, or None.
 
     Uses PdmSession.GetConfiguredRevisionOfItems across a few revision rules
-    (see _TC_EXISTENCE_REVISION_RULES). Returns True as soon as one rule
-    resolves a revision for the id. Any other outcome -- id not found under any
-    rule, or an API error -- returns False so creation proceeds; a genuine
-    duplicate that slips through is then caught at Commit() (operation-failure
-    code 940519) and reported via dump_pdm_errors(). Never raises.
+    (see _TC_EXISTENCE_REVISION_RULES) and returns the first
+    ItemRevisionCliSpec that resolves (a string openable with
+    Parts.OpenActiveDisplay). None means the id was not found under any rule,
+    or an API error occurred -- so creation proceeds; a genuine duplicate that
+    slips through is then caught at Commit() (operation-failure code 940519)
+    and reported via dump_pdm_errors(). Never raises.
     """
     _log = log or (lambda m: None)
     try:
@@ -55,12 +56,33 @@ def item_exists_in_teamcenter(the_session, item_id, log=None):
                 if not res.HasFailed and spec:
                     _log("  Teamcenter already has {0} (revision {1}, "
                          "rule '{2}').".format(item_id, spec, rule))
-                    return True
-        return False
+                    return spec
+        return None
     except Exception as ex:
         _log("  existence pre-check inconclusive ({0}); relying on "
              "commit-time validation.".format(ex))
-        return False
+        return None
+
+
+def item_exists_in_teamcenter(the_session, item_id, log=None):
+    """True if the item id already exists in Teamcenter (see
+    find_item_revision_spec). Never raises."""
+    return find_item_revision_spec(the_session, item_id, log) is not None
+
+
+def open_teamcenter_part(the_session, spec):
+    """Open a Teamcenter part by its revision spec and make it the displayed part.
+
+    `spec` is an ItemRevisionCliSpec from find_item_revision_spec(). Returns the
+    opened part. Raises if NX cannot open it (the caller reports the error).
+    """
+    part, load_status = the_session.Parts.OpenActiveDisplay(
+        spec, NXOpen.DisplayPartOption.AllowAdditional)
+    try:
+        load_status.Dispose()
+    except Exception:
+        pass
+    return part
 
 
 def dump_pdm_errors(builder, lw, label):

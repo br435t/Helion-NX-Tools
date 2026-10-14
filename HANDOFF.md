@@ -66,8 +66,11 @@ Creates a `BE9_COTS` item. Differs from the Design flow in three ways:
 This is the recorded journal wired to the scraper. `main()` does:
 
 1. **Prompt for a part number** (`CREATE_MCMASTER_PART_partno_dialog.dlx`).
-1b. **Existence pre-check** (`item_exists_in_teamcenter`) — abort early (before the
-   scrape) if the id already exists in Teamcenter. See gotcha #9.
+1b. **Existence pre-check** (`find_item_revision_spec`) — if the id already exists
+   in Teamcenter, stop before the scrape and **open the existing part**
+   (`open_teamcenter_part` → `Parts.OpenActiveDisplay(spec, AllowAdditional)`,
+   using the `ItemRevisionCliSpec` the check returned). If it can't be opened, an
+   error box is shown. Nothing is created or scraped. See gotcha #9.
 2. **`fetch_mcmaster(pn)`** — subprocess to the external scraper: `scrape --out
    C:\TEMP\MCMASTER` (writes `<pn>.json`) then `cad --out C:\TEMP\MCMASTER
    --json` (downloads the default 3-D Parasolid, **no-threads** `*.X_T`).
@@ -162,13 +165,15 @@ Edge browser, which are not available in NX's embedded Python.
    truth: operation-failure **code 940519**, *"Cannot create a new revision of an
    existing part using New. Use Save As for this operation."* The item already
    exists in Teamcenter.
-   - **Pre-check:** `item_exists_in_teamcenter()` uses
+   - **Pre-check:** `find_item_revision_spec()` (`item_exists_in_teamcenter()` is a
+     True/False wrapper) uses
      `PdmSession.GetConfiguredRevisionOfItems` to resolve the id *before*
      creating. This needs a **revision rule**: an empty rule resolves nothing
      (false "not found"). The rules that work here are **`Latest Working`** and
      **`Any Status; Working`**; `Latest Released` / `Precise` / `Latest` / empty
-     do **not** (verified via `check_part_exists.py`). The check returns True as
-     soon as one rule resolves the id.
+     do **not** (verified via `check_part_exists.py`). The check returns the spec
+     of the first rule that resolves the id (`Latest Working` first, so the latest
+     working revision is the one opened).
    - **Reading the failure:** `ErrorMessageHandler.GetErrorMessages()` returns
      NULL for these PDM builders; use `GetOperationFailures()` →
      `NXOpen.ErrorList` → `GetErrorInfo(i)` → `.ErrorCode` / `.Description`
