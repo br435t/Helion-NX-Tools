@@ -48,7 +48,8 @@ opens a browser so you can log in to McMaster once. Re-running it is safe.
 
 Attributes set: `DB_PART_NO` = part number, `DB_PART_NAME` = the name you
 confirm (pre-filled with the product title, all caps), `HE_Manufacturer` =
-`MCMASTER`, `Part Class` = `Class III`. Creation is done by
+`MCMASTER`, `Part Class` = `Class III`, and the part revision is set to `NC`
+(`DB_PART_REV`). Creation is done by
 `create_vendor_part` in `lib/vendor_part.py`.
 
 Keep each script next to its `.dlx` dialog file(s); the scraper (`lib/scraper/`)

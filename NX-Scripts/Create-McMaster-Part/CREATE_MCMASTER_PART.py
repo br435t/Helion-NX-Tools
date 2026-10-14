@@ -38,6 +38,9 @@ from lib.vendor_part import create_vendor_part  # noqa: E402
 _PARTNO_DLX = os.path.join(_HERE, "CREATE_MCMASTER_PART_partno_dialog.dlx")
 _PARTNAME_DLX = os.path.join(_HERE, "CREATE_MCMASTER_PART_partname_dialog.dlx")
 
+# Revision the new part is created with (DB_PART_REV).
+_PART_REVISION = "NC"
+
 # Layer the imported geometry (all bodies) is moved to.
 _BODY_LAYER = 71
 
@@ -149,7 +152,10 @@ def main(args) :
     # --- 5. Create the BE9_COTS item (File > New > Item) ---
     lw.WriteLine("Creating COTS part {0} ...".format(part_no))
     workPart = create_vendor_part(part_no, part_name, manufacturer, part_class,
-                                  destination_folder=MCMASTER_TC_FOLDER, lw=lw)
+                                  destination_folder=MCMASTER_TC_FOLDER, lw=lw,
+                                  revision=_PART_REVISION)
+    lw.WriteLine("Created COTS part: {0}  (requested revision {1})".format(
+        workPart.Leaf, _PART_REVISION))
 
     # --- 6. Import the downloaded Parasolid geometry into the new part ---
     # cad_file is None when the user chose to create the part without CAD

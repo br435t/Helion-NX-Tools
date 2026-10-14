@@ -54,8 +54,12 @@ Creates a `BE9_COTS` item. Differs from the Design flow in three ways:
 - **Part number is user-supplied** (the vendor/manufacturer PN), written as the
   `DB_PART_NO` attribute — *not* auto-assigned from a naming pattern.
 - **Attributes span two categories:** `DB_PART_NO`/`DB_PART_NAME` on `BE9_COTS`;
-  `HE_Manufacturer`/`Item:revision:ItemRevision:be9_PartClass` on
-  `BE9_COTSRevision`. (`DB_PART_DESC` is no longer set.)
+  `HE_Manufacturer`/`Item:revision:ItemRevision:be9_PartClass`/`DB_PART_REV` on
+  `BE9_COTSRevision`. (`DB_PART_DESC` is no longer set.) The revision is `"NC"`
+  (`_PART_REVISION` in the script; recording
+  `example_journals/journal_create_vendor_part_with_NC_rev.py`), so the part is
+  `<id>.NC` instead of `<id>.A`. `DB_PART_REV` is set *before* the naming-map
+  step, as in that recording.
 
 ### Flow (`main()`)
 
@@ -81,7 +85,8 @@ This is the recorded journal wired to the scraper. `main()` does:
 5. **`create_vendor_part()`** (`lib/vendor_part.py`) creates the `BE9_COTS` part
    in `:MCMASTER` (empty naming map, `DB_PART_NO` as an attribute).
    Mapping: ID → `DB_PART_NO`, Name → `DB_PART_NAME`, Manufacturer →
-   `HE_Manufacturer`, Part Class → `be9_PartClass`.
+   `HE_Manufacturer`, Part Class → `be9_PartClass`, Revision → `DB_PART_REV`
+   (`"NC"`).
 6. **Import the downloaded Parasolid** (`import_parasolid()`) into the newly
    created work part — using the actual `*.X_T` path from step 2. Import happens
    after `Commit()` because the part must exist first. Skipped when the user chose
@@ -184,6 +189,15 @@ Edge browser, which are not available in NX's embedded Python.
      (set `default`, or `""`) from both callbacks.
    - Diagnosing it needed before/after logging of `GetString("Value")` /
      `("WideValue")` at each callback; that logging has since been removed.
+11. **Restart NX after editing anything under `lib/`.** NX's embedded Python keeps
+   imported modules for the whole NX session, so a changed `lib/*.py` file is not
+   re-read on the next *File → Execute → NX Open…* run — the old code keeps
+   running. Seen when setting the part revision to `NC`: the updated
+   `create_vendor_part(..., revision="NC")` still produced revision `A` until NX was
+   restarted, then worked. The script file you select in the Execute dialog is
+   re-read each run; the `lib` modules it imports are the cached part. The same
+   applies to `.dlx` edits (see #10). **Rule: edit `lib/` or a `.dlx` → restart NX
+   before testing**, and don't conclude a fix failed until you have.
 
 ## Status / open items
 
