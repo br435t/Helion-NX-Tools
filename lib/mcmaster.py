@@ -156,7 +156,7 @@ def make_filename_safe(name):
 
     Note: the "The new filename is not a valid file specification" error chased
     during development turned out to be a duplicate item-id collision (operation
-    failure 940519), not illegal characters -- see item_exists_in_teamcenter().
+    failure 940519), not illegal characters -- see find_item_revision_spec().
     """
     name = name.replace('"', 'IN').replace('/', '-').replace('\\', '-')
     for bad in '<>:|?*':

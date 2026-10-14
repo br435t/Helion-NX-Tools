@@ -95,6 +95,9 @@ An NX script locates the repo root by walking up the folder tree, so it finds
   3-D Parasolid model, e.g. `5887K51`), the tool shows the reason and asks whether
   to create the part **without geometry**. **No** stops with nothing created in
   Teamcenter; **Yes** creates the part and skips the Parasolid import.
+* If the part number **already exists** in Teamcenter, the tool doesn't scrape or
+  create anything — it **opens the existing part** instead (latest working
+  revision).
 * The scraper needs a McMaster login (cached in a dedicated Edge profile). If the
   session expires, the tool opens a sign-in window automatically.
 * See `HANDOFF.md` for the full list of NX Open / Teamcenter gotchas.

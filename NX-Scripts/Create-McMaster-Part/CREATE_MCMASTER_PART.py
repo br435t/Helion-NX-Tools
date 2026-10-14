@@ -30,7 +30,8 @@ _add_repo_root_to_path()
 from lib.layers import move_to_layer  # noqa: E402
 from lib.mcmaster import MCMASTER_OUT, build_description, fetch_mcmaster, make_filename_safe  # noqa: E402
 from lib.nx_dialogs import ask_yes_no, prompt_string  # noqa: E402
-from lib.teamcenter import MCMASTER_TC_FOLDER, import_parasolid, item_exists_in_teamcenter  # noqa: E402
+from lib.teamcenter import (MCMASTER_TC_FOLDER, find_item_revision_spec, import_parasolid,  # noqa: E402
+                            open_teamcenter_part)
 from lib.vendor_part import create_vendor_part  # noqa: E402
 
 # Single-field BlockStyler dialogs (part-number and part-name prompts). These
@@ -63,18 +64,28 @@ def main(args) :
         lw.WriteLine("Cancelled: no part number entered.")
         return
 
-    # --- 1b. Abort early if this part already exists in Teamcenter ---
+    # --- 1b. Part already exists in Teamcenter -> open it ---
     # COTS item ids are the vendor part number (DB_PART_NO). Re-creating an
     # existing id fails at Commit() with the opaque "The new filename is not a
-    # valid file specification"; catch it up front (before the scrape) instead.
+    # valid file specification", so check up front (before the scrape). If the
+    # part exists, open it instead of creating a duplicate.
     lw.WriteLine("Checking Teamcenter for existing part {0} ...".format(entered_pn))
-    if item_exists_in_teamcenter(theSession, entered_pn, log=lw.WriteLine):
-        NXOpen.UI.GetUI().NXMessageBox.Show(
-            "Part Already Exists",
-            NXOpen.NXMessageBox.DialogType.Warning,
-            "Part {0} already exists in Teamcenter.\n\n"
-            "Creation was cancelled to avoid a duplicate item.".format(entered_pn))
-        lw.WriteLine("Aborted: {0} already exists in Teamcenter.".format(entered_pn))
+    existing_spec = find_item_revision_spec(theSession, entered_pn, log=lw.WriteLine)
+    if existing_spec:
+        lw.WriteLine("Part {0} already exists - opening {1} ...".format(
+            entered_pn, existing_spec))
+        try:
+            opened = open_teamcenter_part(theSession, existing_spec)
+        except Exception as ex:
+            NXOpen.UI.GetUI().NXMessageBox.Show(
+                "Part Already Exists",
+                NXOpen.NXMessageBox.DialogType.Error,
+                "Part {0} already exists in Teamcenter, but it could not be "
+                "opened:\n\n{1}".format(entered_pn, ex))
+            lw.WriteLine("Aborted: could not open existing part {0}: {1}".format(
+                entered_pn, ex))
+            return
+        lw.WriteLine("Opened existing part: {0}".format(opened.Leaf))
         return
 
     # --- 2. Scrape JSON + download the no-threads Parasolid CAD ---
