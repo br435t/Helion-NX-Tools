@@ -1,0 +1,33 @@
+{
+  "description": "Known-good System environment variables used by NX / Teamcenter (NX 2506, TC 2506). Captured from a working workstation (br435t) via Environment-report-20261015-132934.txt.",
+  "variables": [
+    {
+      "name": "FMS_HOME",
+      "scope": "Machine",
+      "expected": "C:\\SPLM\\TC2506\\TCCS_PROD\\tccs",
+      "mustContain": ["bin"],
+      "purpose": "Teamcenter FMS client cache (TCCS) location"
+    },
+    {
+      "name": "JAVA_HOME",
+      "scope": "Machine",
+      "expected": "C:\\SPLM\\Java\\jre17",
+      "mustContain": ["bin\\java.exe"],
+      "purpose": "Java runtime used by NX / Teamcenter"
+    },
+    {
+      "name": "JRE_HOME",
+      "scope": "Machine",
+      "expected": "C:\\SPLM\\Java\\jre17",
+      "mustContain": ["bin\\java.exe"],
+      "purpose": "Java runtime used by NX / Teamcenter"
+    },
+    {
+      "name": "JRE64_HOME",
+      "scope": "Machine",
+      "expected": "C:\\SPLM\\Java\\jre17",
+      "mustContain": ["bin\\java.exe"],
+      "purpose": "64-bit Java runtime used by NX / Teamcenter"
+    }
+  ]
+}
