@@ -17,8 +17,10 @@ Helion-NX-Tools/
 ├── lib/                         Shared helpers the NX scripts import (mcmaster, teamcenter, dialogs)
 │   └── scraper/                 McMaster-Carr Selenium scraper (vendored; run OUTSIDE NX as a subprocess)
 ├── Windows-Tools/               Standalone Windows utilities (no NX or Python needed)
-│   └── NX-TC-Cache-Clear/       Batch script: kill NX/Teamcenter and clear local caches
-│       └── README.md            What it clears and how to run it
+│   ├── NX-TC-Cache-Clear/       Batch script: kill NX/Teamcenter and clear local caches
+│   │   └── README.md            What it clears and how to run it
+│   ├── Check-Environment-Variables/  PowerShell: test User/System environment variables
+│   └── Check-UGII-PythonPath/   PowerShell: diagnose the UGII_PYTHONPATH startup warning
 ├── example_journals/            Journals RECORDED in NX, kept as reference only
 ├── setup.bat                    One-click setup: .venv + dependencies + NX Open MCP + McMaster login
 ├── setup_mcp.ps1                Called by setup.bat: extracts NX_Open_MCP.zip and writes .mcp.json
@@ -55,6 +57,12 @@ the folder tree and adds it to `sys.path`, so it finds `lib/` and
 - **[NX-TC-Cache-Clear](Windows-Tools/NX-TC-Cache-Clear/README.md)** — batch
   script that stops NX and Teamcenter and clears their local caches when either
   is misbehaving.
+- **[Check-Environment-Variables](Windows-Tools/Check-Environment-Variables/README.md)** —
+  PowerShell script that tests the Windows User and System environment variables
+  (missing paths, bad `%VAR%` references, PATH problems, User/System conflicts,
+  write test) and saves a report. Double-click `Run-Check.bat`.
+- **[Check-UGII-PythonPath](Windows-Tools/Check-UGII-PythonPath/README.md)** —
+  diagnoses the NX "Unable to append module directory path in PYTHONPATH" warning.
 
 ## Getting started
 

@@ -28,3 +28,4 @@ MCP_extract_tmp/
 
 # Output from Windows-Tools/Check-UGII-PythonPath
 *UGII_PYTHONPATH-*.txt
+*Environment-report-*.txt
