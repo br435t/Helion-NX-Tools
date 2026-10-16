@@ -29,3 +29,6 @@ MCP_extract_tmp/
 # Output from Windows-Tools/Check-UGII-PythonPath
 *UGII_PYTHONPATH-*.txt
 *Environment-report-*.txt
+
+# Script output (e.g. NX-Scripts/List-Assembly-Components)
+output/
