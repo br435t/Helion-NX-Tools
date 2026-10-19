@@ -43,6 +43,8 @@
 .EXAMPLE
   powershell -ExecutionPolicy Bypass -File .\Check-Environment-Variables.ps1
 #>
+# Author:  br435t
+# Created: 2026-10-15
 param(
     [switch]$NoPause,
     [switch]$SkipWriteTest,

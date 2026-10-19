@@ -15,7 +15,8 @@ Helion-NX-Tools/
 │   │   └── README.md            How to set up and run the Create-McMaster-Part tool
 │   ├── Check-Part-Exists/       Diagnostic: is an item id already in Teamcenter?
 │   ├── List-Assembly-Components/ Write the assembly tree (components, bodies, materials) to a text file
-│   └── Color-By-Material/       Color every body by its NX material, from Materials/NX_Materials.csv
+│   ├── Color-By-Material/       Color every body by its NX material, from Materials/NX_Materials.csv
+│   └── Export-System-Log/       Save a copy of the NX system log (syslog) to output/
 ├── my_scripts/                  YOUR OWN scripts: every *.py in here is git-ignored, never shared
 ├── lib/                         Shared helpers the NX scripts import (mcmaster, teamcenter, dialogs, assemblies, colors)
 │   └── scraper/                 McMaster-Carr Selenium scraper (vendored; run OUTSIDE NX as a subprocess)
@@ -67,6 +68,10 @@ the folder tree and adds it to `sys.path`, so it finds `lib/` and
   `color_by_material.py` clears assembly color overrides first;
   `color_by_material_asm_leave_color.py` leaves them. Modifies the component
   parts (not saved automatically).
+
+- **[Export System Log](NX-Scripts/Export-System-Log/README.md)** — copies the running
+  NX session's system log to `output/nx_syslog_<timestamp>.txt`, ready to attach to a
+  ticket or send to support.
 
 ## Windows Tools
 

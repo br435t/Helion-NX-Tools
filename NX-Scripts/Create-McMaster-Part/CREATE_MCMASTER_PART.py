@@ -1,4 +1,6 @@
 # NX 2506
+# Author:  br435t
+# Created: 2026-07-10
 # Journal created by br435t on Tue Jul 14 09:12:10 2026 Pacific Daylight Time
 #
 # User-facing flow only. Every helper this script calls lives in lib/ at the
