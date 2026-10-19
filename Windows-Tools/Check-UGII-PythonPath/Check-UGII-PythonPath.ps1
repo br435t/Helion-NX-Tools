@@ -36,6 +36,8 @@
 .EXAMPLE
   powershell -ExecutionPolicy Bypass -File .\Check-UGII-PythonPath.ps1 -NxDir C:\SPLM\NX\NX2506
 #>
+# Author:  br435t
+# Created: 2026-10-14
 param(
     [switch]$Fix,
     [string]$NxDir,

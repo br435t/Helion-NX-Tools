@@ -1,3 +1,5 @@
+# Author:  br435t
+# Created: 2026-10-17
 # Lists who is using each license feature on the NX license server (NX91110,
 # nx_design_token, teamcenter_*, ...). Features with nobody using them are left
 # out. The list is saved to <repo>\output\license_status_latest.txt and the full

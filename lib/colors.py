@@ -40,16 +40,46 @@ def nearest_color_number(hex_code, part=None):
     return best[0], tuple(int(round(x)) for x in best[1])
 
 
-def set_body_color(bodies, color_number):
-    """Color `bodies` (occurrence or prototype bodies) with an NX color number,
-    including all their faces. Returns the number of bodies colored."""
+def color_number_from(value, part=None):
+    """NX color number (1-216) for a "color" cell, which may be a hex code or an
+    NX color ID. Returns None for a blank value; raises ValueError if it is
+    neither.
+
+    * starts with "#"                  -> hex code, mapped to the nearest NX color
+    * a whole number from 1 to 216     -> used as the NX color ID directly
+    * exactly 6 hex digits, no "#"     -> hex code (e.g. 03fcad)
+    """
+    v = (value or "").strip()
+    if not v:
+        return None
+    if not v.startswith("#"):
+        if v.isdigit() and 1 <= int(v) <= 216:
+            return int(v)
+        if len(v) != 6:
+            raise ValueError("not a hex code or an NX color ID (1-216): {0!r}".format(value))
+    try:
+        return nearest_color_number(v, part)[0]
+    except ValueError:
+        raise ValueError("not a hex code or an NX color ID (1-216): {0!r}".format(value))
+
+
+def set_body_color(bodies, color_number=None, translucency=None):
+    """Set the display color and/or translucency of `bodies` (occurrence or
+    prototype bodies), including all their faces. Returns the number of bodies.
+
+    color_number: NX palette index 1-216, or None to leave the color alone.
+    translucency: 0 (opaque) to 100 (fully clear), or None to leave it alone.
+    """
     bodies = list(bodies)
-    if not bodies:
+    if not bodies or (color_number is None and translucency is None):
         return 0
     dm = NXOpen.Session.GetSession().DisplayManager.NewDisplayModification()
     try:
         dm.ApplyToAllFaces = True
-        dm.NewColor = color_number
+        if color_number is not None:
+            dm.NewColor = color_number
+        if translucency is not None:
+            dm.NewTranslucency = int(translucency)
         dm.Apply(bodies)
     finally:
         dm.Dispose()

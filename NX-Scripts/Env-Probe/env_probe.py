@@ -1,4 +1,6 @@
 # NX 2506
+# Author:  br435t
+# Created: 2026-10-14
 # Standalone probe: prints what NX sees when it runs a script, so a
 # "Unable to append module directory path in PYTHONPATH" warning can be traced.
 #
