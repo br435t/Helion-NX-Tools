@@ -95,3 +95,75 @@ def get_body_material(body):
         return material.Name if material is not None else None
     except Exception:
         return None
+
+
+def find_display_body(comp, proto_body):
+    """The object in the displayed assembly that stands for `proto_body`.
+
+    The bodies of a component's part are prototypes; what the assembly shows is the
+    occurrence, found with Component.FindOccurrence (the same mapping get_bodies uses).
+    `comp` None means the body belongs to the displayed (active) part itself, which is
+    not an occurrence, so the body is returned as is. Use the result to highlight the
+    body on screen. Returns None if it cannot be found; never raises.
+    """
+    try:
+        if comp is None:
+            return proto_body
+        return comp.FindOccurrence(proto_body)
+    except Exception:
+        return None
+
+
+def assign_material(part, body, name, libraries=()):
+    """Assign the library material `name` to `body`, a body of `part`.
+
+    `part` must be the current work part (NX assigns in the work part's context), and
+    `body` a body of that part (not an occurrence). Follows the recorded
+    example_journals/journal_assign_material.py (find the material in the part, then
+    PhysicalMaterial.AssignObjects([body])), after getting the material into the part:
+
+      1. already loaded in the part ("PhysicalMaterial[<name>]"), else
+      2. loaded from each MatML file in `libraries` (full path or file name), in order
+         with PhysicalMaterialCollection.LoadFromMatmlLibrary, else
+      3. NX's built-in default library (LoadFromNxmatmllibrary). Many sites switch that
+         library off (customer default "Default Material Library - Show"), in which case
+         this step finds nothing; the site's own MatML file in step 2 is what works.
+
+    Returns (True, "") on success, or (False, reason) where the reason lists every
+    attempt and what NX said about it. Never raises. Success is only reported once
+    get_body_material() reads the new material back.
+    """
+    attempts = []
+    try:
+        pm = part.MaterialManager.PhysicalMaterials
+    except Exception as ex:
+        return False, "no material manager on {0}: {1}".format(getattr(part, "Leaf", part), ex)
+
+    material = None
+    try:
+        material = pm.FindObject("PhysicalMaterial[{0}]".format(name))
+    except Exception as ex:
+        attempts.append("not already in the part ({0})".format(ex))
+
+    if material is None:
+        for library in libraries:
+            try:
+                material = pm.LoadFromMatmlLibrary(library, name)
+                break
+            except Exception as ex:
+                attempts.append("{0}: {1}".format(library.replace("\\", "/").split("/")[-1], ex))
+    if material is None:
+        try:
+            material = pm.LoadFromNxmatmllibrary(name)
+        except Exception as ex:
+            attempts.append("NX default library: {0}".format(ex))
+    if material is None:
+        return False, "could not load '{0}': {1}".format(name, "; ".join(attempts))
+
+    try:
+        material.AssignObjects([body])
+    except Exception as ex:
+        return False, "loaded '{0}' but AssignObjects failed: {1}".format(name, ex)
+    if get_body_material(body) is None:
+        return False, "NX accepted the assignment but the body still shows no material"
+    return True, ""
