@@ -140,8 +140,8 @@ def main(args) :
     # --- 3. Derive attribute values ---
     part_no = (data.get("part_number") or entered_pn).strip()
     part_desc = build_description(data)          # title_primary + secondary, UPPER
-    manufacturer = "MCMASTER"                    # hardcoded
-    part_class = "Class III"                     # hardcoded
+    manufacturer = "MCMASTER-CARR"               # hardcoded
+    part_class = "Class II"                      # hardcoded
     lw.WriteLine("  Description: {0}".format(part_desc))
 
     # --- 4. Ask the user for the part name (DB_PART_NAME), prefilled with the
