@@ -38,6 +38,3 @@ Python example:
 
 Out of scope: `my_scripts/` (personal, git-ignored), `NX-Scripts/ARCHIVE/`
 (git-ignored), `lib/`, and non-script files such as READMEs and JSON.
-
-`Windows-Tools/NX-TC-Cache-Clear/` is a separate git repo (a gitlink here), so a
-header added to its script must be committed there and the pointer updated here.

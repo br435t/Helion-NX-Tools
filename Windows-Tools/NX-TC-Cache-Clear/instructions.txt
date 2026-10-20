@@ -1,0 +1,10 @@
+kill NX: ugraf.exeTeamcenter
+Find the Java process that is running for NX/TC (usually called Zulu) and kill it.
+Navigate to C:\Users\*username\AppData\Local\Temp (Appdata folder might be hidden-if so turn on Hidden Items in View menu for Windows Explorer)
+Select everything in the folder and delete the contents (do not delete the Temp folder itself).
+There will be a dialog that pops that says you cannot delete a folder because it is in use. When this happens, check the box that says "Do this for all current items" and select Skip.
+Anything remaining in the Temp folder is not related to TC/NX and should be left (software currently running is using the folders and are fine to leave).
+You can also delete the following folders:
+- C:\Users\*username*\Siemens (if it exists)
+- C:\Users\*username*\FCCCache (if it exists)
+- C:\Users\*username*\Teamcenter (if it exists)
