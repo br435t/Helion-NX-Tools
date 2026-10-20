@@ -11,11 +11,20 @@ import os
 
 import NXOpen
 
-from lib.assemblies import get_bodies, get_body_material, walk_components
+from lib.assemblies import (assign_material, find_display_body, get_bodies, get_body_material,
+                            walk_components)
 from lib.colors import clear_component_color_override, color_number_from, set_body_color
+from lib.nx_dialogs import choose_from_list
 
 # Bodies with no material assigned get this color (set to None to leave them alone).
 NO_MATERIAL_COLOR = "#ff00ff"
+
+# Folder holding the site's MatML material libraries (the files NX_Materials.csv was built
+# from: its "source_file" column). Matches the site customer default
+# "Gateway > Materials/Mass > Locations > Site MatML Library" (UG_SiteMatMlLibrary_WIN).
+# Change it if the libraries move.
+MATERIAL_LIBRARY_DIR = (r"\\usantpvwtcor001\NXStore\NX_PROD_CUSTOM\NXcustom"
+                        r"\NXcommonlibrary\Materials")
 
 MATERIALS_CSV = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -41,6 +50,34 @@ def _load_material_styles():
             if hex_code or translucency is not None:
                 styles[row["name"].lower()] = (hex_code, translucency)
     return styles
+
+
+def _load_material_names():
+    """Material names from NX_Materials.csv (the Helion material library), sorted,
+    for the "pick a material" dialog."""
+    names = []
+    with open(MATERIALS_CSV, newline="", encoding="utf-8-sig") as f:
+        for row in csv.DictReader(f):
+            row = {(k or "").strip().lower(): (v or "").strip() for k, v in row.items()}
+            if row.get("name"):
+                names.append(row["name"])
+    return sorted(set(names), key=str.lower)
+
+
+def _load_material_libraries():
+    """{lower-cased material name: [MatML file to load it from]} using the CSV's
+    "source_file" column, so a gas or liquid material is loaded from the gas/liquid
+    library and the rest from the main Helion library. Each material gets the full
+    path first and the bare file name second (NX resolves a bare name against its site
+    and user MatML libraries)."""
+    libraries = {}
+    with open(MATERIALS_CSV, newline="", encoding="utf-8-sig") as f:
+        for row in csv.DictReader(f):
+            row = {(k or "").strip().lower(): (v or "").strip() for k, v in row.items()}
+            name, source = row.get("name"), row.get("source_file")
+            if name and source:
+                libraries[name.lower()] = [os.path.join(MATERIAL_LIBRARY_DIR, source), source]
+    return libraries
 
 
 _bad_colors = set()      # color cells that were neither hex nor an NX ID (reported once)
@@ -81,11 +118,99 @@ def _body_name(body):
         return "?"
 
 
-def run(clear_overrides):
+def _highlight(obj):
+    """Highlight `obj` in the graphics window (no-op for None; never raises)."""
+    if obj is not None:
+        try:
+            obj.Highlight()
+        except Exception:
+            pass
+
+
+def _unhighlight(obj):
+    if obj is not None:
+        try:
+            obj.Unhighlight()
+        except Exception:
+            pass
+
+
+def _assign_missing_materials(session, display_part, proto, comp, names, dialog,
+                              state, assigned, failures, libraries=None):
+    """Ask for, and assign, a material for every body of `proto` that has none.
+
+    One dialog per body. Cancel (or OK with nothing selected) skips that body; the
+    dialog's "stop asking" toggle sets state["skip_all"] so no further prompts are
+    shown. Assigned bodies are appended to `assigned` as (part, body, material),
+    problems to `failures` as (part, body, material, reason). The caller then reads
+    each body's material again, so a body that was assigned simply gets that
+    material's color, and one that was not falls back to the no-material color.
+
+    Assigning needs the owning part to be the work part, so it is made the work part
+    for the duration and the displayed part is restored afterwards.
+    """
+    missing = [b for b in proto.Bodies if get_body_material(b) is None]
+    if not missing or state["skip_all"]:
+        return
+    try:
+        if comp is not None:
+            session.Parts.SetWorkComponent(comp)
+        for body in missing:
+            if state["skip_all"]:
+                break
+            body_name = _body_name(body)
+            # Highlight this body in the display so the user can see which one the
+            # dialog is asking about. The displayed object is the occurrence of the
+            # body (or the body itself, for the active part). No zoom: the view is
+            # left alone. Always un-highlighted again in the finally below.
+            shown = find_display_body(comp, body)
+            hidden = ""
+            try:
+                if shown is not None and shown.IsBlanked:
+                    hidden = " (this body is hidden)"
+            except Exception:
+                pass
+            heading = "{0} / {1}{2}: no material. Pick one:".format(proto.Leaf, body_name, hidden)
+            try:
+                _highlight(shown)
+                chosen, skip = choose_from_list(
+                    dialog, "materialList", names, heading=heading,
+                    heading_id="heading", skip_id="skipAll",
+                    on_shown=lambda shown=shown: _highlight(shown))
+            except Exception as ex:
+                failures.append((proto.Leaf, body_name, "(dialog)",
+                                 "could not show the material dialog: {0}".format(ex)))
+                state["skip_all"] = True
+                break
+            finally:
+                _unhighlight(shown)
+            if skip:
+                state["skip_all"] = True
+            if not chosen:
+                continue
+            ok, why = assign_material(proto, body, chosen,
+                                      (libraries or {}).get(chosen.lower(), ()))
+            if ok:
+                assigned.append((proto.Leaf, body_name, chosen))
+            else:
+                failures.append((proto.Leaf, body_name, chosen, why))
+    except Exception as ex:
+        failures.append((proto.Leaf, "(part)", "",
+                         "could not make it the work part: {0}".format(ex)))
+    finally:
+        session.Parts.SetWork(display_part)
+
+
+def run(clear_overrides, assign_missing=False, material_dialog=None):
     """Color every body in the displayed assembly by material.
 
     clear_overrides: also clear the assembly-level color override on every
     component first (so part colors are visible).
+
+    assign_missing: when a body has no material, prompt for one from the material
+    library (the BlockStyler dialog file `material_dialog`), assign it, and then
+    color the body with that material's color. This MODIFIES the parts (the material
+    assignment, like the coloring, is not saved).
     """
     session = NXOpen.Session.GetSession()
     lw = session.ListingWindow
@@ -100,6 +225,23 @@ def run(clear_overrides):
     material_styles = _load_material_styles()
     lw.WriteLine("{0} materials have a color and/or transparency in {1}".format(
         len(material_styles), MATERIALS_CSV))
+
+    material_names = []
+    material_libraries = {}
+    if assign_missing:
+        if not material_dialog or not os.path.isfile(material_dialog):
+            lw.WriteLine("Cannot prompt for materials: dialog file not found: {0}".format(
+                material_dialog))
+            return
+        material_names = _load_material_names()
+        material_libraries = _load_material_libraries()
+        lw.WriteLine("Bodies with no material will prompt for one of {0} library materials.".format(
+            len(material_names)))
+        lw.WriteLine("Materials are loaded from the MatML libraries in {0}".format(
+            MATERIAL_LIBRARY_DIR))
+    state = {"skip_all": False}
+    assigned = []         # (part, body, material) assigned from the prompt
+    assign_failures = []  # (part, body, material, reason)
 
     # One entry per distinct part: first component using it, and how many
     # instances there are.
@@ -136,6 +278,10 @@ def run(clear_overrides):
     skipped = []         # (part, reason) -- parts that could not be changed
     read_only = []       # part names that were changed but are read-only
     for proto, comp, instances in parts.values():
+        if assign_missing and not state["skip_all"]:
+            _assign_missing_materials(session, display_part, proto, comp, material_names,
+                                      material_dialog, state, assigned, assign_failures,
+                                      material_libraries)
         # (palette number or None, translucency or None) -> [(body, material)]
         by_style = {}
         for body in proto.Bodies:
@@ -181,6 +327,16 @@ def run(clear_overrides):
     lw.WriteLine("Changed {0} bodies in {1} parts (modified, NOT saved).".format(
         n_bodies, n_parts))
     lw.WriteLine("If a body still looks unchanged, it may carry a body-level override.")
+    if assign_missing:
+        lw.WriteLine("")
+        lw.WriteLine("Materials assigned from the prompt: {0}{1}".format(
+            len(assigned), "  (stopped asking early)" if state["skip_all"] else ""))
+        for part_name, body_name, material in assigned:
+            lw.WriteLine("  {0} / {1} -> {2}".format(part_name, body_name, material))
+        if assign_failures:
+            lw.WriteLine("Could not assign:")
+            for part_name, body_name, material, why in assign_failures:
+                lw.WriteLine("  {0} / {1} -> {2}: {3}".format(part_name, body_name, material, why))
     if read_only:
         lw.WriteLine("Read-only parts (changed in this session, cannot be saved as-is):")
         for name in read_only:

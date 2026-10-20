@@ -74,6 +74,108 @@ def prompt_string(dlx_path, block_id, default=None):
         dialog.Dispose()
 
 
+def choose_from_list(dlx_path, list_id, items, heading=None, heading_id=None, skip_id=None,
+                     on_shown=None):
+    """Show a BlockStyler dialog with a single-select list box; return (item, skip).
+
+    `dlx_path` is the dialog file; `list_id` is the API name of its list box and
+    `items` the strings to list. `heading` is put into the label block `heading_id`
+    (if both are given), and `skip_id` names an optional toggle (for example "stop
+    asking") whose state is returned as `skip`. `on_shown`, if given, is called with no
+    arguments just before the dialog opens and again once it is on screen (a modal
+    dialog can redraw the graphics window and drop a highlight, so callers use it to
+    re-apply one). Errors raised by `on_shown` are ignored.
+
+    Returns (chosen string, skip): the chosen string is None if the user cancelled,
+    closed the dialog, or pressed OK with nothing selected. `skip` is the toggle's
+    state at the end (False when there is no toggle), also reported on Cancel so a
+    "skip all" can be combined with skipping this one.
+
+    Like prompt_string, BlockStyler needs its callbacks registered and block values
+    read inside the callbacks; the selection is read in the OK/Apply callback.
+    """
+    items = list(items)
+    the_ui = NXOpen.UI.GetUI()
+    dialog = the_ui.CreateDialog(dlx_path)
+    captured = {"item": None, "skip": False}
+
+    def _skip_value():
+        if not skip_id:
+            return False
+        try:
+            return bool(dialog.GetBlockProperties(skip_id).GetLogical("Value"))
+        except Exception:
+            return False
+
+    def initialize_cb():
+        if heading_id and heading:
+            try:
+                dialog.GetBlockProperties(heading_id).SetString("Label", heading)
+            except Exception:
+                pass
+        try:
+            dialog.TopBlock.FindBlock(list_id).SetListItems(items)
+        except Exception:
+            dialog.GetBlockProperties(list_id).SetStrings("ListItems", items)
+        if skip_id:
+            try:
+                dialog.GetBlockProperties(skip_id).SetLogical("Value", False)
+            except Exception:
+                pass
+
+    def _notify_shown():
+        if on_shown is not None:
+            try:
+                on_shown()
+            except Exception:
+                pass
+
+    def shown_cb():
+        _notify_shown()
+
+    def update_cb(block):
+        captured["skip"] = _skip_value()
+        return 0
+
+    def apply_cb():
+        chosen = None
+        try:
+            selected = dialog.TopBlock.FindBlock(list_id).GetSelectedItems()
+            if selected:
+                chosen = items[selected[0]]
+        except Exception:
+            try:
+                chosen = dialog.TopBlock.FindBlock(list_id).SelectedItemString or None
+            except Exception:
+                chosen = None
+        captured["item"] = chosen
+        captured["skip"] = _skip_value()
+        return 0
+
+    def ok_cb():
+        return apply_cb()
+
+    def cancel_cb():
+        captured["skip"] = _skip_value()
+        return 0
+
+    dialog.AddInitializeHandler(initialize_cb)
+    dialog.AddDialogShownHandler(shown_cb)
+    dialog.AddUpdateHandler(update_cb)
+    dialog.AddOkHandler(ok_cb)
+    dialog.AddApplyHandler(apply_cb)
+    dialog.AddCancelHandler(cancel_cb)
+
+    try:
+        _notify_shown()
+        response = dialog.Show()
+        if response != NXOpen.Selection.Response.Ok:
+            return None, captured["skip"]
+        return captured["item"], captured["skip"]
+    finally:
+        dialog.Dispose()
+
+
 def ask_yes_no(title, message):
     """Show a modal Yes/No question box; True if the user chose Yes.
 

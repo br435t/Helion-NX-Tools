@@ -38,3 +38,6 @@ my_scripts/**/*.py
 
 # Archived scripts (NX-Scripts/ARCHIVE) -- local only
 NX-Scripts/ARCHIVE/
+
+# Personal Claude Code settings (permissions allowlist) -- local only, never shared
+.claude/settings.local.json

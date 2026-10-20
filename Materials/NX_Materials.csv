@@ -75,7 +75,7 @@ helion_material_library.xml,Aluminum 1145,METAL,Aluminum Alloy,IsotropicMaterial
 helion_material_library.xml,Aluminum 1060,METAL,Aluminum Alloy,IsotropicMaterial,7,,,2.7,7.311900e+07,3.300000e-01,#bcbdb7,0
 helion_material_library.xml,Silver Annealed,,,IsotropicMaterial,1,,,3.79e+08,,,#8d9091,0
 helion_material_library.xml,Steel AISI 4140,METAL,Carbon Steel,IsotropicMaterial,7,,,7850,1.930000e+08,2.840000e-01,#a6aaab,0
-helion_material_library.xml,G-10 Norplex NP500,COMPOSITE,,IsotropicMaterial,1,,,1770,,,#03fcad,0
+helion_material_library.xml,G-10 Norplex NP500,COMPOSITE,,IsotropicMaterial,1,,,1770,,,63,0
 helion_material_library.xml,Kapton,,,IsotropicMaterial,1,,,1420,,,#ba9500,80
 helion_material_library.xml,Polyethylene High-density HDPE,,,IsotropicMaterial,1,,,950,,,#faf5eb,0
 helion_material_library.xml,Silcone,,,IsotropicMaterial,1,,,1.375,,,#faf5eb,0
