@@ -15,6 +15,7 @@ Helion-NX-Tools/
 │   │   └── README.md            How to set up and run the Create-McMaster-Part tool
 │   ├── Check-Part-Exists/       Diagnostic: is an item id already in Teamcenter?
 │   ├── List-Assembly-Components/ Write the assembly tree (components, bodies, materials) to a text file
+│   ├── Env-Probe/               Diagnostic: print what NX sees (script path, UGII_* vars, PYTHONPATH, sys.path)
 │   ├── Color-By-Material/       Color every body by its NX material, from Materials/NX_Materials.csv
 │   └── Export-System-Log/       Save a copy of the NX system log (syslog) to output/
 ├── my_scripts/                  YOUR OWN scripts: every *.py in here is git-ignored, never shared
@@ -69,6 +70,9 @@ the folder tree and adds it to `sys.path`, so it finds `lib/` and
   `color_by_material_asm_leave_color.py` leaves them. Modifies the component
   parts (not saved automatically).
 
+- **[Env Probe](NX-Scripts/Env-Probe/README.md)** — diagnostic that prints what NX sees
+  when it runs a script (script folder, `UGII_*` variables, `PYTHONPATH`, `sys.path`) to
+  trace the "Unable to append module directory path in PYTHONPATH" warning.
 - **[Export System Log](NX-Scripts/Export-System-Log/README.md)** — copies the running
   NX session's system log to `output/nx_syslog_<timestamp>.txt`, ready to attach to a
   ticket or send to support.
