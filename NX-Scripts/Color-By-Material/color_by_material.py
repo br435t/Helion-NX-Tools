@@ -1,4 +1,6 @@
 # NX 2506
+# Author:  br435t
+# Created: 2026-10-16
 # Colors every body in the displayed assembly according to its NX physical
 # material, using the "color" column of Materials/NX_Materials.csv.
 #

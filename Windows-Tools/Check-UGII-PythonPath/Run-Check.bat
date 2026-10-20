@@ -1,4 +1,6 @@
 @echo off
+REM Author:  br435t
+REM Created: 2026-10-14
 REM Double-click this to run Check-UGII-PythonPath.ps1.
 REM It bypasses the PowerShell execution policy (a script downloaded in a zip is
 REM often blocked otherwise, and the window would close instantly) and keeps the

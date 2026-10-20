@@ -12,7 +12,7 @@ import xml.etree.ElementTree as ET
 HERE = os.path.dirname(os.path.abspath(__file__))
 FIELDS = ["source_file", "name", "class", "subclass", "material_type", "version",
           "alt_name", "description", "density_kg_m3", "youngs_modulus_raw",
-          "poissons_ratio", "color"]
+          "poissons_ratio", "color", "Transparency"]
 
 
 def _val(bd, *prefixes):
@@ -59,21 +59,32 @@ def main():
     if len(sys.argv) > 1:
         folder = sys.argv[1]
     else:
-        dated = sorted(d for d in os.listdir(HERE) if os.path.isdir(os.path.join(HERE, d)))
+        # Newest subfolder that actually holds .xml libraries (ignores __pycache__ etc.).
+        dated = sorted(
+            d for d in os.listdir(HERE)
+            if os.path.isdir(os.path.join(HERE, d))
+            and any(f.lower().endswith(".xml") for f in os.listdir(os.path.join(HERE, d))))
+        if not dated:
+            sys.exit("No subfolder with .xml material libraries found in " + HERE)
         folder = os.path.join(HERE, dated[-1])
     rows = []
     for fn in sorted(os.listdir(folder)):
         if fn.lower().endswith(".xml"):
             rows.extend(rows_from(os.path.join(folder, fn)))
+    if not rows:
+        sys.exit("No <Material> entries found in {0}; leaving NX_Materials.csv alone.".format(folder))
     out = os.path.join(HERE, "NX_Materials.csv")
-    # "color" (hex, e.g. #03fcad) is hand-maintained: carry it over from the
-    # existing CSV by material name so a rebuild does not wipe it.
-    colors = {}
+    # "color" (hex, e.g. #03fcad) and "Transparency" (0 opaque .. 100 clear) are
+    # hand-maintained: carry them over from the existing CSV by material name so
+    # a rebuild does not wipe them.
+    kept = {}
     if os.path.isfile(out):
-        with open(out, newline="", encoding="utf-8") as f:
-            colors = {r["name"]: r.get("color", "") for r in csv.DictReader(f)}
+        with open(out, newline="", encoding="utf-8-sig") as f:
+            kept = {r["name"]: r for r in csv.DictReader(f)}
     for r in rows:
-        r["color"] = colors.get(r["name"], "")
+        old = kept.get(r["name"], {})
+        r["color"] = old.get("color", "")
+        r["Transparency"] = old.get("Transparency", "")
     with open(out, "w", newline="", encoding="utf-8") as f:
         w = csv.DictWriter(f, fieldnames=FIELDS)
         w.writeheader()

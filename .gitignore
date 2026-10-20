@@ -32,3 +32,9 @@ MCP_extract_tmp/
 
 # Script output (e.g. NX-Scripts/List-Assembly-Components)
 output/
+
+# Personal NX scripts (my_scripts) -- not shared
+my_scripts/**/*.py
+
+# Archived scripts (NX-Scripts/ARCHIVE) -- local only
+NX-Scripts/ARCHIVE/
