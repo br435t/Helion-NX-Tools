@@ -12,3 +12,6 @@ Scripts here can import the shared helpers in `lib/` the same way the shared
 scripts do: walk up from the script to the folder containing `lib/` and add it to
 `sys.path` (see `NX-Scripts/Color-By-Material/color_by_material.py` for the
 snippet).
+
+Your own reusable functions go in [lib/](lib/), also git-ignored. It has no
+`__init__.py` on purpose; see [lib/README.md](lib/README.md) for how to import from it.

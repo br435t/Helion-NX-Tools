@@ -28,6 +28,15 @@ def _palette(part):
     return _palette_cache
 
 
+def palette_table(part=None):
+    """{NX color ID 1-216: (r, g, b)} with each channel an int 0-255, read from NX's
+    own palette (Preferences.ConvertColorNumberToRGBValue). `part` defaults to the
+    displayed part; NX needs a part open to ask."""
+    if part is None:
+        part = NXOpen.Session.GetSession().Parts.Display
+    return {n: tuple(int(round(x)) for x in rgb) for n, rgb in _palette(part).items()}
+
+
 def nearest_color_number(hex_code, part=None):
     """Return (color_number, (r, g, b)) of the NX palette entry (1-216) closest
     to `hex_code`. The NX palette has only 216 colors, so most hex codes are

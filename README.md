@@ -67,8 +67,9 @@ the folder tree and adds it to `sys.path`, so it finds `lib/` and
 - **[Color By Material](NX-Scripts/Color-By-Material/README.md)** — colors every
   body by its NX material using the hex codes in `Materials/NX_Materials.csv`.
   `color_by_material.py` clears assembly color overrides first;
-  `color_by_material_asm_leave_color.py` leaves them. Modifies the component
-  parts (not saved automatically).
+  `color_by_material_asm_leave_color.py` leaves them. `assign_and_color_materials.py`
+  also prompts for a material for each body that has none, assigns it, then colors it.
+  Modifies the component parts (not saved automatically).
 
 - **[Env Probe](NX-Scripts/Env-Probe/README.md)** — diagnostic that prints what NX sees
   when it runs a script (script folder, `UGII_*` variables, `PYTHONPATH`, `sys.path`) to
