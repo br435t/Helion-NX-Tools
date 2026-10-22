@@ -1,9 +1,10 @@
+<!-- fullWidth: false tocVisible: false tableWrap: true -->
 # Helion NX Tools
 
-NX Open (Python) automation and supporting tools for **NX 2506** running in
+NX Open (Python) automation and supporting tools for **NX 2506** running in\
 **Teamcenter managed mode** at Helion.
 
-The repo is organized by **where the code runs** — inside NX, outside NX, or
+The repo is organized by **where the code runs** — inside NX, outside NX, or\
 recorded from NX as reference.
 
 ## Repository structure
@@ -41,71 +42,105 @@ Helion-NX-Tools/
 
 ## What lives where
 
-| Folder | Runs | Contents |
-|--------|------|----------|
-| [NX-Scripts/](NX-Scripts/) | Inside NX (File → Execute → NX Open…) | The tools NX operators actually run, each in its own folder alongside its `.dlx` BlockStyler dialogs. |
-| [my_scripts/](my_scripts/) | Inside NX | Personal scripts. Every `*.py` here is git-ignored, so nothing you write in this folder is shared or committed. Put shared tools under `NX-Scripts/` instead. |
-| [Materials/](Materials/) | Not executed | Material library XMLs from the NX common library, plus `NX_Materials.csv` (one row per material; the `color` column is hand-maintained and drives Color-By-Material). `build_nx_materials_csv.py` rebuilds the CSV and keeps the colors. |
-| [lib/](lib/) | Inside NX (imported by the NX scripts) | Helpers the NX scripts call: `mcmaster.py` (scraper wrapper, description/filename helpers), `teamcenter.py` (existence check, PDM error dump, Parasolid import), `vendor_part.py` (`create_vendor_part`, the BE9_COTS create), `nx_dialogs.py` (BlockStyler prompts), `layers.py` (`move_to_layer`), and `scraper/` (the Selenium scraper, run as an external subprocess since NX's embedded Python can't drive Edge). Scripts keep only the user-facing flow. |
-| [Windows-Tools/](Windows-Tools/) | Outside NX (run directly in Windows) | Standalone troubleshooting utilities for the NX / Teamcenter workstation. They don't use the `.venv` or the NX Open scripts. |
-| [example_journals/](example_journals/) | Not executed | Journals recorded via Tools → Journal → Record, kept for reverse-engineering NX Open calls. |
+| Folder            | Runs                                   | Contents                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| ----------------- | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [NX-Scripts/](NX-Scripts/) | Inside NX (File → Execute → NX Open…)  | The tools NX operators actually run, each in its own folder alongside its `.dlx` BlockStyler dialogs.                                                                                                                                                                                                                                                                                                                                          |
+| [my_scripts/](my_scripts/) | Inside NX                              | Personal scripts. Every `*.py` here is git-ignored, so nothing you write in this folder is shared or committed. Put shared tools under `NX-Scripts/` instead.                                                                                                                                                                                                                                                                                  |
+| [Materials/](Materials/) | Not executed                           | Material library XMLs from the NX common library, plus `NX_Materials.csv` (one row per material; the `color` column is hand-maintained and drives Color-By-Material). `build_nx_materials_csv.py` rebuilds the CSV and keeps the colors.                                                                                                                                                                                                       |
+| [lib/](lib/)      | Inside NX (imported by the NX scripts) | Helpers the NX scripts call: `mcmaster.py` (scraper wrapper, description/filename helpers), `teamcenter.py` (existence check, PDM error dump, Parasolid import), `vendor_part.py` (`create_vendor_part`, the BE9_COTS create), `nx_dialogs.py` (BlockStyler prompts), `layers.py` (`move_to_layer`), and `scraper/` (the Selenium scraper, run as an external subprocess since NX's embedded Python can't drive Edge). Scripts keep only the user-facing flow. |
+| [Windows-Tools/](Windows-Tools/) | Outside NX (run directly in Windows)   | Standalone troubleshooting utilities for the NX / Teamcenter workstation. They don't use the `.venv` or the NX Open scripts.                                                                                                                                                                                                                                                                                                                   |
+| [example_journals/](example_journals/) | Not executed                           | Journals recorded via Tools → Journal → Record, kept for reverse-engineering NX Open calls.                                                                                                                                                                                                                                                                                                                                                    |
 
-An NX script locates the repo root (the folder containing `lib/`) by walking up
-the folder tree and adds it to `sys.path`, so it finds `lib/` and
+An NX script locates the repo root (the folder containing `lib/`) by walking up\
+the folder tree and adds it to `sys.path`, so it finds `lib/` and\
 `.venv/` no matter how deep it sits under `NX-Scripts/`.
 
 ## Tools
 
-- **[Create McMaster Part](NX-Scripts/Create-McMaster-Part/README.md)** — enter a
-  McMaster-Carr part number; it scrapes the product data, downloads the CAD,
-  creates a `BE9_COTS` part in Teamcenter, and imports the geometry. See its
+- **[Create McMaster Part](NX-Scripts/Create-McMaster-Part/README.md)** — enter a\
+  McMaster-Carr part number; it scrapes the product data, downloads the CAD,\
+  creates a `BE9_COTS` part in Teamcenter, and imports the geometry. See its\
   [README](NX-Scripts/Create-McMaster-Part/README.md) for setup and usage.
-
-- **[List Assembly Components](NX-Scripts/List-Assembly-Components/list_assembly_components.py)** —
-  walks the displayed assembly and writes every component, its bodies and their
+- **[List Assembly Components](NX-Scripts/List-Assembly-Components/list_assembly_components.py)** —\
+  walks the displayed assembly and writes every component, its bodies and their\
   NX material to `output/<part>_components.txt`, with a quantity-by-part summary.
-- **[Color By Material](NX-Scripts/Color-By-Material/README.md)** — colors every
-  body by its NX material using the hex codes in `Materials/NX_Materials.csv`.
-  `color_by_material.py` clears assembly color overrides first;
-  `color_by_material_asm_leave_color.py` leaves them. `assign_and_color_materials.py`
-  also prompts for a material for each body that has none, assigns it, then colors it.
+- **[Color By Material](NX-Scripts/Color-By-Material/README.md)** — colors every\
+  body by its NX material using the hex codes in `Materials/NX_Materials.csv`.\
+  `color_by_material.py` clears assembly color overrides first;\
+  `color_by_material_asm_leave_color.py` leaves them. `assign_and_color_materials.py`\
+  also prompts for a material for each body that has none, assigns it, then colors it.\
   Modifies the component parts (not saved automatically).
-
-- **[Env Probe](NX-Scripts/Env-Probe/README.md)** — diagnostic that prints what NX sees
-  when it runs a script (script folder, `UGII_*` variables, `PYTHONPATH`, `sys.path`) to
+- **[Env Probe](NX-Scripts/Env-Probe/README.md)** — diagnostic that prints what NX sees\
+  when it runs a script (script folder, `UGII_*` variables, `PYTHONPATH`, `sys.path`) to\
   trace the "Unable to append module directory path in PYTHONPATH" warning.
-- **[Export System Log](NX-Scripts/Export-System-Log/README.md)** — copies the running
-  NX session's system log to `output/nx_syslog_<timestamp>.txt`, ready to attach to a
+- **[Export System Log](NX-Scripts/Export-System-Log/README.md)** — copies the running\
+  NX session's system log to `output/nx_syslog_<timestamp>.txt`, ready to attach to a\
   ticket or send to support.
 
 ## Windows Tools
 
-- **[NX-TC-Cache-Clear](Windows-Tools/NX-TC-Cache-Clear/README.md)** — batch
-  script that stops NX and Teamcenter and clears their local caches when either
+- **[NX-TC-Cache-Clear](Windows-Tools/NX-TC-Cache-Clear/README.md)** — batch\
+  script that stops NX and Teamcenter and clears their local caches when either\
   is misbehaving.
-- **[Check-Environment-Variables](Windows-Tools/Check-Environment-Variables/README.md)** —
-  PowerShell script that tests the Windows User and System environment variables
-  (missing paths, bad `%VAR%` references, PATH problems, User/System conflicts,
+- **[Check-Environment-Variables](Windows-Tools/Check-Environment-Variables/README.md)** —\
+  PowerShell script that tests the Windows User and System environment variables\
+  (missing paths, bad `%VAR%` references, PATH problems, User/System conflicts,\
   write test) and saves a report. Double-click `Run-Check.bat`.
-- **[Check-UGII-PythonPath](Windows-Tools/Check-UGII-PythonPath/README.md)** —
+- **[Check-UGII-PythonPath](Windows-Tools/Check-UGII-PythonPath/README.md)** —\
   diagnoses the NX "Unable to append module directory path in PYTHONPATH" warning.
 
 ## Getting started
 
-1. Clone (or extract) this repo to a **short, plain folder**, e.g.
-   `C:\Code\Helion-NX-Tools`. Avoid OneDrive, network drives, and paths with
-   spaces or special characters — NX can fail with *"Unable to append module
-   directory path in PYTHONPATH"* when a script is run from such a folder.
+1. Clone (or extract) this repo to a **short, plain folder**, e.g.\
+   `C:\Code\Helion-NX-Tools`. Avoid OneDrive, network drives, and paths with\
+   spaces or special characters — NX can fail with *"Unable to append module\
+   directory path in PYTHONPATH"* when a script is run from such a folder.\
    `setup.bat` warns if the folder looks risky.
-2. **Double-click** [setup.bat](setup.bat) — creates `.venv`, installs
-   dependencies (behind the corporate SSL proxy), extracts the NX Open MCP
-   server (`NX_Open_MCP.zip` → `MCP/`, registered in `.mcp.json`), and caches the
-   McMaster login. Restart Claude Code in this folder afterwards so the `nxopen`
+2. **Double-click** [setup.bat](setup.bat) — creates `.venv`, installs\
+   dependencies (behind the corporate SSL proxy), extracts the NX Open MCP\
+   server (`NX_Open_MCP.zip` → `MCP/`, registered in `.mcp.json`), and caches the\
+   McMaster login. Restart Claude Code in this folder afterwards so the `nxopen`\
    server loads.
 3. Follow the per-tool README under [NX-Scripts/](NX-Scripts/) to run a tool.
 4. Put your own scripts in [my_scripts/](my_scripts/) — they are git-ignored.
 
+## Using an AI assistant
+
+The tools themselves are plain Python, batch and PowerShell files and need no assistant: run\
+them as described in each tool's README. The repo's rules for an AI assistant (script headers,\
+the `my_scripts/` conventions, how materials are loaded) are written in\
+[CLAUDE.md](CLAUDE.md), which **Claude Code** reads automatically.
+
+### Using OpenAI Codex instead (UNTESTED)
+
+> **Untested.** Nobody has tried this with this repo. It is based on a web search of\
+> secondary write-ups (not OpenAI's own documentation), so check OpenAI's Codex\
+> configuration reference before relying on any detail below, and expect to adjust it.
+
+Codex reads a file called `AGENTS.md`, **not** `CLAUDE.md`, so it ignores this repo's rules\
+unless you give them to it. Two ways:
+
+**A. Per user, no repo change.** In your Codex config file (`~/.codex/config.toml`, i.e.\
+`%USERPROFILE%\.codex\config.toml` on Windows) tell Codex to fall back to `CLAUDE.md`\
+when a folder has no `AGENTS.md`:
+
+```toml
+project_doc_fallback_filenames = ["CLAUDE.md"]
+```
+
+Each person has to do this on their own machine. Start Codex from the repo folder.
+
+Things to know:
+
+- Codex limits how much instruction text it loads (reported as 32 KiB by default). `CLAUDE.md`\
+  is well under that.
+- `CLAUDE.md` mentions Claude-specific things (skills, a memory folder). Codex treats them as\
+  plain text and cannot use them.
+- **Not covered here (also untested):** the repo's `nxopen` MCP server (`.mcp.json`, `MCP/`)\
+  and the `.claude/skills/` skill are Claude Code features. Whether Codex can use the MCP\
+  server has not been checked.
+
 ## More detail
 
-See [HANDOFF.md](HANDOFF.md) for the full list of NX Open / Teamcenter gotchas,
+See [HANDOFF.md](HANDOFF.md) for the full list of NX Open / Teamcenter gotchas,\
 key functions, and open items.

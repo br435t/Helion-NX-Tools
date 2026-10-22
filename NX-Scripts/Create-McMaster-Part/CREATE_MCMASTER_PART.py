@@ -35,6 +35,7 @@ from lib.nx_dialogs import ask_yes_no, prompt_string  # noqa: E402
 from lib.teamcenter import (MCMASTER_TC_FOLDER, find_item_revision_spec, import_parasolid,  # noqa: E402
                             open_teamcenter_part)
 from lib.vendor_part import create_vendor_part  # noqa: E402
+from lib.views import fit_work_view  # noqa: E402
 
 # Single-field BlockStyler dialogs (part-number and part-name prompts). These
 # sit next to this script.
@@ -182,10 +183,27 @@ def main(args) :
         # --- 7. Move all bodies to layer 71 ---
         moved = move_to_layer(_BODY_LAYER, part=workPart)
         lw.WriteLine("  moved {0} body(ies) to layer {1}.".format(moved, _BODY_LAYER))
+
+        # --- 7b. Zoom to fit all the imported bodies ---
+        # Best effort: if NX cannot fit the view, the part is still fully created.
+        if fit_work_view(theSession.Parts.Display or workPart):
+            lw.WriteLine("  zoomed to fit all bodies.")
+        else:
+            lw.WriteLine("  could not zoom to fit (use View > Fit).")
     else:
         lw.WriteLine("  skipped Parasolid import (no CAD).")
 
     theSession.CleanUpFacetedFacesAndEdges()
+
+    # --- 8. Tell the user it is done ---
+    # Last thing written, so it is what they see at the bottom of the Listing Window.
+    lw.WriteLine("")
+    lw.WriteLine("=" * 60)
+    if cad_file:
+        lw.WriteLine("Import was successful. You can close this window.")
+    else:
+        lw.WriteLine("Part created (no CAD was imported). You can close this window.")
+    lw.WriteLine("=" * 60)
 
 
 if __name__ == '__main__':

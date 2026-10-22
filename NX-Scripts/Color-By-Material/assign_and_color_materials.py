@@ -8,6 +8,8 @@
 #
 # Run via File -> Execute -> NX Open... with an assembly displayed.
 #
+# The dialog has a Search box: type part of a material name (words in any order, e.g.
+# "alum 60") and press Enter to narrow the list; clear it to see every material.
 # One dialog per body without a material (Cancel skips that body; the "Stop asking"
 # toggle skips all the rest). The body being asked about is highlighted in the graphics
 # window while the dialog is open (no zoom; your view is left alone). A skipped body gets the no-material color, as in
