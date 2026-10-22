@@ -74,8 +74,21 @@ def prompt_string(dlx_path, block_id, default=None):
         dialog.Dispose()
 
 
+def filter_items(items, text):
+    """The `items` that match the search `text`, in their original order.
+
+    Case-insensitive; the text is split on whitespace and EVERY word must appear somewhere
+    in the item, so "alum 60" finds "Aluminum 6061" and "steel 304" finds
+    "Stainless Steel AISI 304". Blank text matches everything.
+    """
+    terms = (text or "").lower().split()
+    if not terms:
+        return list(items)
+    return [item for item in items if all(t in item.lower() for t in terms)]
+
+
 def choose_from_list(dlx_path, list_id, items, heading=None, heading_id=None, skip_id=None,
-                     on_shown=None):
+                     on_shown=None, search_id=None):
     """Show a BlockStyler dialog with a single-select list box; return (item, skip).
 
     `dlx_path` is the dialog file; `list_id` is the API name of its list box and
@@ -85,6 +98,12 @@ def choose_from_list(dlx_path, list_id, items, heading=None, heading_id=None, sk
     arguments just before the dialog opens and again once it is on screen (a modal
     dialog can redraw the graphics window and drop a highlight, so callers use it to
     re-apply one). Errors raised by `on_shown` are ignored.
+
+    `search_id` names an optional string block used as a search box: when its text changes
+    (NX reports that when the user presses Enter or Tab in the field) the list is narrowed
+    to the items that match it (see filter_items), and a single match is selected for
+    you. Clearing the text brings the full list back. A plain click in the list, or the
+    toggle, never resets the list or the selection.
 
     Returns (chosen string, skip): the chosen string is None if the user cancelled,
     closed the dialog, or pressed OK with nothing selected. `skip` is the toggle's
@@ -98,6 +117,41 @@ def choose_from_list(dlx_path, list_id, items, heading=None, heading_id=None, sk
     the_ui = NXOpen.UI.GetUI()
     dialog = the_ui.CreateDialog(dlx_path)
     captured = {"item": None, "skip": False}
+    # What the list box currently shows (filtered by the search text); OK maps the
+    # selected row back to a name through this, never through the full `items`.
+    view = {"items": items, "text": ""}
+
+    def _search_text():
+        if not search_id:
+            return ""
+        props = dialog.GetBlockProperties(search_id)
+        for key in ("WideValue", "Value"):    # same order as prompt_string
+            try:
+                text = props.GetString(key)
+            except Exception:
+                text = ""
+            if text:
+                return text
+        return ""
+
+    def _show_items(shown):
+        view["items"] = shown
+        try:
+            dialog.TopBlock.FindBlock(list_id).SetListItems(shown)
+        except Exception:
+            dialog.GetBlockProperties(list_id).SetStrings("ListItems", shown)
+
+    def _refilter():
+        text = _search_text()
+        if text == view["text"]:
+            return                      # nothing typed: leave the list and selection alone
+        view["text"] = text
+        _show_items(filter_items(items, text))
+        if len(view["items"]) == 1:
+            try:
+                dialog.TopBlock.FindBlock(list_id).SetSelectedItems([0])
+            except Exception:
+                pass
 
     def _skip_value():
         if not skip_id:
@@ -113,10 +167,13 @@ def choose_from_list(dlx_path, list_id, items, heading=None, heading_id=None, sk
                 dialog.GetBlockProperties(heading_id).SetString("Label", heading)
             except Exception:
                 pass
-        try:
-            dialog.TopBlock.FindBlock(list_id).SetListItems(items)
-        except Exception:
-            dialog.GetBlockProperties(list_id).SetStrings("ListItems", items)
+        _show_items(items)
+        if search_id:
+            for key in ("Value", "WideValue"):
+                try:
+                    dialog.GetBlockProperties(search_id).SetString(key, "")
+                except Exception:
+                    pass
         if skip_id:
             try:
                 dialog.GetBlockProperties(skip_id).SetLogical("Value", False)
@@ -135,6 +192,11 @@ def choose_from_list(dlx_path, list_id, items, heading=None, heading_id=None, sk
 
     def update_cb(block):
         captured["skip"] = _skip_value()
+        if search_id:
+            try:
+                _refilter()
+            except Exception:
+                pass
         return 0
 
     def apply_cb():
@@ -142,7 +204,7 @@ def choose_from_list(dlx_path, list_id, items, heading=None, heading_id=None, sk
         try:
             selected = dialog.TopBlock.FindBlock(list_id).GetSelectedItems()
             if selected:
-                chosen = items[selected[0]]
+                chosen = view["items"][selected[0]]
         except Exception:
             try:
                 chosen = dialog.TopBlock.FindBlock(list_id).SelectedItemString or None

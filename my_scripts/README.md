@@ -15,3 +15,6 @@ snippet).
 
 Your own reusable functions go in [lib/](lib/), also git-ignored. It has no
 `__init__.py` on purpose; see [lib/README.md](lib/README.md) for how to import from it.
+
+Your own recorded NX journals go in [my_journals/](my_journals/), also git-ignored; see
+[my_journals/README.md](my_journals/README.md).

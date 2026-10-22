@@ -100,6 +100,12 @@ no-material color, it asks you which material it should have.
 - **One dialog per body** without a material. The dialog's heading names the part and the\
   body (`1150201-500/01 / BODY 1: no material. Pick one:`) and the list is the whole material\
   library (the names in `Materials/NX_Materials.csv`, sorted).
+- **Search box:** type part of a material name and press **Enter** (or Tab) to narrow the list.\
+  Every word you type must appear in the name, in any order, ignoring case: `alum 60` finds\
+  `Aluminum 6061`, `steel 304` finds `Stainless Steel AISI 304`. If exactly one material matches\
+  it is selected for you, so you can just press OK. Clear the box and press Enter to see the\
+  whole library again. The list filters when you press Enter, not as you type (a limit of NX
+  text boxes).
 - **The body is highlighted** in the graphics window while its dialog is open, and\
   un-highlighted when you answer, so you can see which one you are choosing for. The view is\
   never moved or zoomed. If the body is hidden the heading says `(this body is hidden)`; a body\

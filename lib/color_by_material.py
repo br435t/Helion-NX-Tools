@@ -175,7 +175,7 @@ def _assign_missing_materials(session, display_part, proto, comp, names, dialog,
                 _highlight(shown)
                 chosen, skip = choose_from_list(
                     dialog, "materialList", names, heading=heading,
-                    heading_id="heading", skip_id="skipAll",
+                    heading_id="heading", skip_id="skipAll", search_id="searchBox",
                     on_shown=lambda shown=shown: _highlight(shown))
             except Exception as ex:
                 failures.append((proto.Leaf, body_name, "(dialog)",
