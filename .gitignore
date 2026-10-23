@@ -41,3 +41,6 @@ NX-Scripts/ARCHIVE/
 
 # Personal Claude Code settings (permissions allowlist) -- local only, never shared
 .claude/settings.local.json
+
+# Installed release marker written by update.bat (local only)
+.installed_version
