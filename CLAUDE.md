@@ -71,3 +71,28 @@ NXcustom folder `\\usantpvwtcor001\NXStore\NX_PROD_CUSTOM\NXcustom\NXcommonlibra
 * Use `lib/assemblies.py::assign_material` for this; the folder is `MATERIAL_LIBRARY_DIR` in
   `lib/color_by_material.py`. To check how NX is configured, read `nx_site.dpv`; do not guess.
 
+## Creating geometry: use the Builder so it appears in the feature tree
+
+When an NX Open script creates or modifies geometry (curves, splines, extrudes, holes, blends,
+datums, ...), **use the feature Builder API whenever one exists**, so the result is a real feature
+in the Part Navigator feature tree: parametric, editable by the user, and undoable as one step.
+Do not build it with the direct-creation collections (for example `part.Curves.Create...`,
+`part.Points.Create...` used alone, or UF calls) when a Builder can do the same job. Those make
+unparameterized objects that never show up as features and cannot be edited afterwards.
+
+* **Pattern** (as in the recorded journals in `example_journals/`, e.g. `journal_create_vendor_part.py`):
+  `builder = part.Features.Create<Thing>Builder(...)`, set its properties, `builder.Commit()`, and
+  always `builder.Destroy()` in a `finally`. Wrap the commit in an undo mark
+  (`session.SetUndoMark(...)`, `UndoToMark(...)` if it fails) so a failure leaves nothing behind.
+* **Find the Builder first:** look for a recorded journal in `example_journals/` (or ask the user to
+  record one with Tools > Journal > Record), then check the NX Open stubs/docs
+  (`Create...Builder` on `part.Features`). Journals show the exact property order NX needs.
+* Helper objects a Builder takes as input (for example the `Point` objects behind a studio spline's
+  through-points, or sketch/curve sections) may be plain objects; that is fine. The *result* is what
+  must be a feature.
+* If no Builder exists for the operation, a direct call is acceptable: say so in the script's header
+  comment so the user knows the result will not be in the feature tree.
+* Examples in this repo that follow the pattern: `lib/vendor_part.py::create_vendor_part` (File > New
+  Item) and `lib/colors.py::clear_component_color_override` (properties builder: create, set, `Commit`,
+  `Destroy` in a `finally`).
+

@@ -32,6 +32,7 @@ Helion-NX-Tools/
 ├── example_journals/            Journals RECORDED in NX, kept as reference only
 ├── setup.bat                    One-click setup: .venv + dependencies + NX Open MCP + McMaster login
 ├── setup_mcp.ps1                Called by setup.bat: extracts NX_Open_MCP.zip and writes .mcp.json
+├── update.bat                   Update to a tagged release: pick one, files overwritten, old ones backed up to C:\Temp (update.ps1 does the work)
 ├── NX_Open_MCP.zip              NX Open API search MCP server (extracted to MCP/ by setup.bat)
 ├── MCP/                         Extracted MCP server (git-ignored)
 ├── requirements.txt             Python deps for the scraper (installed by setup.bat)
@@ -103,6 +104,40 @@ the folder tree and adds it to `sys.path`, so it finds `lib/` and\
    server loads.
 3. Follow the per-tool README under [NX-Scripts/](NX-Scripts/) to run a tool.
 4. Put your own scripts in [my_scripts/](my_scripts/) — they are git-ignored.
+
+## Updating to a newer release
+
+Double-click **`update.bat`** in this folder. It uses only what Windows already has (PowerShell), no
+Python and no git, and needs internet access to github.com.
+
+1. It lists the GitHub releases, newest first, for example `v1.0.0 Release` or `v0.9.5 Public Beta`, with the
+   tag, the date, a *pre-release* flag, and which one you have installed. Type a number (Enter = the newest)
+   or `Q` to quit.
+2. It shows where the **backup** will go, asks you to confirm, then downloads the release (about 55 MB).
+3. It saves your **current copy of every file it is about to overwrite** to a zip in `C:\Temp`, named like
+   `Helion-NX-Tools_backup_v0.9.5_to_v1.0.0_20261023-133642.zip`. **The path is printed before the update
+   and again at the end.** If the backup cannot be made, nothing is changed. Move the zip somewhere safe
+   if you want to keep it, because `C:\Temp` is not kept forever.
+4. It overwrites the files. Only files tracked in git are in a release, so anything git-ignored (`.venv`,
+   `output`, `my_scripts\*.py`, `MCP`, `.mcp.json`, caches) is never downloaded or touched, and **nothing is
+   ever deleted**.
+
+Afterwards **restart NX** (it keeps the old modules in memory), and run `setup.bat` again if the update says
+`requirements.txt` changed.
+
+**To undo an update**, open PowerShell and run the `Expand-Archive` line written inside the backup zip
+(`_BACKUP_INFO.txt`); it puts your old copies of those files back.
+
+Good to know:
+
+* **Your edits to tracked files are overwritten** (the backup is how you get them back). Keep your own work in
+  `my_scripts\`, which an update never touches.
+* **`update.bat` is only in releases made after it was added.** If your folder came from an older release,
+  download `update.bat` and `update.ps1` once from the repository's main branch, put them in this folder, and
+  run `update.bat`.
+* A **git clone** should use `git pull` instead; `update.bat` warns and asks before it touches a clone.
+* For scripting: `update.bat -Tag v1.0.0 -Yes` (no questions), `update.bat -DryRun` (show what would change),
+  `-BackupDir D:\Backups` (a different backup folder).
 
 ## Using an AI assistant
 

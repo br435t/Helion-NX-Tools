@@ -15,40 +15,24 @@ the McMaster/COTS flow (part number → scrape → create → import).
 * **Python 3.10+** on the machine (for the scraper). Get it from
   <https://www.python.org/downloads/> and tick *"Add python.exe to PATH"*.
 
-## One-click setup
-
-
-1. Download or clone this repo to a **short, plain folder**, e.g.
-   `C:\Code\Helion-NX-Tools` — not inside OneDrive, not on a network drive, and
-   with no spaces or special characters in the path. Otherwise NX can fail with
-   *"Unable to append module directory path in PYTHONPATH"* when you run a script.
-   If you downloaded the zip, make sure you don't end up with a doubled folder
-   (`Helion-NX-Tools-main\Helion-NX-Tools-main`) — move the inner folder out.
-2. **Double-click** `setup.bat`.
-
-That creates the Python virtual environment the scraper needs, installs its
-dependencies (works behind the corporate SSL proxy via `pip-system-certs`), and
-opens a browser so you can log in to McMaster once. Re-running it is safe.
-
-> `setup.bat` puts the environment in `.venv` at the repo root, and
-> `CREATE_MCMASTER_PART.py` finds it automatically — no environment variables to
-> set. Pass `nologin` (`setup.bat nologin`) to skip the McMaster login step.
-
 ## Create a part
 
 
 1. Open **NX 2506** with a Teamcenter session.
 2. **File → Execute → NX Open…** → select `NX-Scripts/Create-McMaster-Part/CREATE_MCMASTER_PART.py`.
-3. Enter the **McMaster part number** when prompted.
+3. Enter the **McMaster part number** when prompted. If that part already exists in
+   Teamcenter the tool opens it and stops (see Notes).
 4. The tool scrapes the product data, downloads the no-threads Parasolid CAD to
    `C:\TEMP\MCMASTER`, and shows a **Part Name** dialog pre-filled with the
    description (edit if you like).
-5. It creates the `BE9_COTS` part, sets its attributes, and imports the CAD.
-   Progress is written to the **Listing Window**.
+5. It creates the `BE9_COTS` part, sets its attributes, and imports the CAD, moves the
+   imported bodies to **layer 71**, and **zooms the view to fit** them. Progress is written to
+   the **Listing Window**, which ends with *"Import was successful. You can close this
+   window."* (or *"Part created (no CAD was imported)..."* if you chose to skip the CAD).
 
 Attributes set: `DB_PART_NO` = part number, `DB_PART_NAME` = the name you
 confirm (pre-filled with the product title, all caps), `HE_Manufacturer` =
-`MCMASTER`, `Part Class` = `Class III`, and the part revision is set to `NC`
+`MCMASTER-CARR`, `Part Class` (`be9_PartClass`) = `Class II`, and the part revision is set to `NC`
 (`DB_PART_REV`). Creation is done by
 `create_vendor_part` in `lib/vendor_part.py`.
 
