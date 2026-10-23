@@ -17,6 +17,7 @@ Helion-NX-Tools/
 │   ├── Check-Part-Exists/       Diagnostic: is an item id already in Teamcenter?
 │   ├── List-Assembly-Components/ Write the assembly tree (components, bodies, materials) to a text file
 │   ├── Env-Probe/               Diagnostic: print what NX sees (script path, UGII_* vars, PYTHONPATH, sys.path)
+│   ├── Assign-Material/         Assign one library material to the bodies of the current part that have none
 │   ├── Color-By-Material/       Color every body by its NX material, from Materials/NX_Materials.csv
 │   └── Export-System-Log/       Save a copy of the NX system log (syslog) to output/
 ├── my_scripts/                  YOUR OWN scripts: every *.py in here is git-ignored, never shared
@@ -71,6 +72,9 @@ the folder tree and adds it to `sys.path`, so it finds `lib/` and\
   `color_by_material_asm_leave_color.py` leaves them. `assign_and_color_materials.py`\
   also prompts for a material for each body that has none, assigns it, then colors it.\
   Modifies the component parts (not saved automatically).
+- **[Assign Material](NX-Scripts/Assign-Material/README.md)** — assigns one material from the library
+  (search box + list dialog) to every body of the current part that has none, leaving bodies that already have
+  a material alone. Highlights the bodies first; one undo step; nothing saved.
 - **[Env Probe](NX-Scripts/Env-Probe/README.md)** — diagnostic that prints what NX sees\
   when it runs a script (script folder, `UGII_*` variables, `PYTHONPATH`, `sys.path`) to\
   trace the "Unable to append module directory path in PYTHONPATH" warning.

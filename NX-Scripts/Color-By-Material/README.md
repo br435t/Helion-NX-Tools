@@ -115,6 +115,12 @@ no-material color, it asks you which material it should have.
   material's `color` and `Transparency` from the CSV, exactly as if it had had the material all along.
 - **Cancel**, or OK with nothing selected, **skips that body**. A skipped body gets the no-material\
   color (`#ff00ff`), as in `color_by_material.py`.
+- **"CANCEL THE WHOLE OPERATION"** (the other toggle in the dialog) ends the run. Tick it and press OK or\
+  Cancel; no more dialogs are shown and no more parts are changed. **What was already done is kept** (the\
+  parts finished so far stay assigned and colored, and the one you were on keeps the materials you had\
+  already picked for it), nothing is rolled back, and the Listing Window says how many parts were never\
+  reached. Cancel on its own still only skips the current body. This is the only place the run can be\
+  stopped, because NX gives a script no other way to interrupt it; the run between dialogs takes seconds.
 - **"Stop asking"** (a toggle in the dialog) skips every remaining body without a material, with no\
   more dialogs. Tick it together with a selection and that body is still assigned.
 - Prompts are **per body of each distinct part**: a part used 20 times is asked once per body, not\
