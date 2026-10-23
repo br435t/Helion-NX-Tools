@@ -14,7 +14,7 @@ import NXOpen
 from lib.assemblies import (assign_material, find_display_body, get_bodies, get_body_material,
                             walk_components)
 from lib.colors import clear_component_color_override, color_number_from, set_body_color
-from lib.nx_dialogs import choose_from_list
+from lib.nx_dialogs import UserCancelled, choose_from_list
 
 # Bodies with no material assigned get this color (set to None to leave them alone).
 NO_MATERIAL_COLOR = "#ff00ff"
@@ -78,6 +78,11 @@ def _load_material_libraries():
             if name and source:
                 libraries[name.lower()] = [os.path.join(MATERIAL_LIBRARY_DIR, source), source]
     return libraries
+
+
+# Public names, for other modules (lib/part_materials.py).
+load_material_names = _load_material_names
+load_material_libraries = _load_material_libraries
 
 
 _bad_colors = set()      # color cells that were neither hex nor an NX ID (reported once)
@@ -150,13 +155,13 @@ def _assign_missing_materials(session, display_part, proto, comp, names, dialog,
     for the duration and the displayed part is restored afterwards.
     """
     missing = [b for b in proto.Bodies if get_body_material(b) is None]
-    if not missing or state["skip_all"]:
+    if not missing or state["skip_all"] or state["cancelled"]:
         return
     try:
         if comp is not None:
             session.Parts.SetWorkComponent(comp)
         for body in missing:
-            if state["skip_all"]:
+            if state["skip_all"] or state["cancelled"]:
                 break
             body_name = _body_name(body)
             # Highlight this body in the display so the user can see which one the
@@ -176,7 +181,11 @@ def _assign_missing_materials(session, display_part, proto, comp, names, dialog,
                 chosen, skip = choose_from_list(
                     dialog, "materialList", names, heading=heading,
                     heading_id="heading", skip_id="skipAll", search_id="searchBox",
+                    cancel_id="cancelAll",
                     on_shown=lambda shown=shown: _highlight(shown))
+            except UserCancelled:
+                state["cancelled"] = True        # stop the whole run; what is done stays done
+                break
             except Exception as ex:
                 failures.append((proto.Leaf, body_name, "(dialog)",
                                  "could not show the material dialog: {0}".format(ex)))
@@ -239,7 +248,7 @@ def run(clear_overrides, assign_missing=False, material_dialog=None):
             len(material_names)))
         lw.WriteLine("Materials are loaded from the MatML libraries in {0}".format(
             MATERIAL_LIBRARY_DIR))
-    state = {"skip_all": False}
+    state = {"skip_all": False, "cancelled": False}
     assigned = []         # (part, body, material) assigned from the prompt
     assign_failures = []  # (part, body, material, reason)
 
@@ -277,7 +286,11 @@ def run(clear_overrides, assign_missing=False, material_dialog=None):
     unchanged = {}       # material (or "(none)") -> count
     skipped = []         # (part, reason) -- parts that could not be changed
     read_only = []       # part names that were changed but are read-only
+    not_processed = 0    # parts never reached because the user cancelled
     for proto, comp, instances in parts.values():
+        if state["cancelled"]:
+            not_processed += 1
+            continue
         if assign_missing and not state["skip_all"]:
             _assign_missing_materials(session, display_part, proto, comp, material_names,
                                       material_dialog, state, assigned, assign_failures,
@@ -285,7 +298,10 @@ def run(clear_overrides, assign_missing=False, material_dialog=None):
         # (palette number or None, translucency or None) -> [(body, material)]
         by_style = {}
         for body in proto.Bodies:
-            style, material = _resolve_style(get_body_material(body), material_styles)
+            current = get_body_material(body)
+            if state["cancelled"] and not current:
+                continue         # cancelled: bodies we never got to are left alone (no magenta)
+            style, material = _resolve_style(current, material_styles)
             if style is None:
                 unchanged[material] = unchanged.get(material, 0) + 1
                 continue
@@ -323,6 +339,12 @@ def run(clear_overrides, assign_missing=False, material_dialog=None):
                     _body_name(body), material, ", ".join(detail),
                     "  (used x{0})".format(instances) if instances > 1 else ""))
 
+    if state["cancelled"]:
+        lw.WriteLine("")
+        lw.WriteLine("*** CANCELLED by you. Nothing more was changed; what was already done was kept. ***")
+        lw.WriteLine("    {0} part(s) were not processed at all.".format(not_processed))
+        if clear_overrides:
+            lw.WriteLine("    (Assembly color overrides on the components had already been cleared at the start.)")
     lw.WriteLine("")
     lw.WriteLine("Changed {0} bodies in {1} parts (modified, NOT saved).".format(
         n_bodies, n_parts))

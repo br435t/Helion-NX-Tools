@@ -74,6 +74,10 @@ def prompt_string(dlx_path, block_id, default=None):
         dialog.Dispose()
 
 
+class UserCancelled(Exception):
+    """The user ticked the dialog's "cancel the whole operation" toggle (see choose_from_list)."""
+
+
 def filter_items(items, text):
     """The `items` that match the search `text`, in their original order.
 
@@ -88,7 +92,7 @@ def filter_items(items, text):
 
 
 def choose_from_list(dlx_path, list_id, items, heading=None, heading_id=None, skip_id=None,
-                     on_shown=None, search_id=None):
+                     on_shown=None, search_id=None, cancel_id=None):
     """Show a BlockStyler dialog with a single-select list box; return (item, skip).
 
     `dlx_path` is the dialog file; `list_id` is the API name of its list box and
@@ -105,6 +109,10 @@ def choose_from_list(dlx_path, list_id, items, heading=None, heading_id=None, sk
     you. Clearing the text brings the full list back. A plain click in the list, or the
     toggle, never resets the list or the selection.
 
+    `cancel_id` names an optional toggle that means "cancel the whole operation". If it is
+    ticked when the dialog is closed (with OK or Cancel), UserCancelled is raised, after the
+    dialog has been disposed, and any selection is ignored. Callers catch it to stop their run.
+
     Returns (chosen string, skip): the chosen string is None if the user cancelled,
     closed the dialog, or pressed OK with nothing selected. `skip` is the toggle's
     state at the end (False when there is no toggle), also reported on Cancel so a
@@ -116,7 +124,7 @@ def choose_from_list(dlx_path, list_id, items, heading=None, heading_id=None, sk
     items = list(items)
     the_ui = NXOpen.UI.GetUI()
     dialog = the_ui.CreateDialog(dlx_path)
-    captured = {"item": None, "skip": False}
+    captured = {"item": None, "skip": False, "cancel": False}
     # What the list box currently shows (filtered by the search text); OK maps the
     # selected row back to a name through this, never through the full `items`.
     view = {"items": items, "text": ""}
@@ -161,6 +169,38 @@ def choose_from_list(dlx_path, list_id, items, heading=None, heading_id=None, sk
         except Exception:
             return False
 
+    def _cancel_value():
+        if not cancel_id:
+            return False
+        try:
+            return bool(dialog.GetBlockProperties(cancel_id).GetLogical("Value"))
+        except Exception:
+            return False
+
+    def _clear_remembered_state():
+        """Untick the toggles and empty the search box.
+
+        NX REMEMBERS the last value of toggles (and text boxes) between runs and restores it
+        AFTER the initialize callback, so a "cancel" or "stop asking" ticked once would come
+        back ticked on every later run and silently discard the user's selection. So this is
+        done on initialize and again once the dialog is on screen (prompt_string does the same).
+        """
+        for toggle in (skip_id, cancel_id):
+            if toggle:
+                try:
+                    dialog.GetBlockProperties(toggle).SetLogical("Value", False)
+                except Exception:
+                    pass
+        if search_id:
+            for key in ("Value", "WideValue"):
+                try:
+                    dialog.GetBlockProperties(search_id).SetString(key, "")
+                except Exception:
+                    pass
+        captured["skip"] = False
+        captured["cancel"] = False
+        view["text"] = ""
+
     def initialize_cb():
         if heading_id and heading:
             try:
@@ -168,17 +208,7 @@ def choose_from_list(dlx_path, list_id, items, heading=None, heading_id=None, sk
             except Exception:
                 pass
         _show_items(items)
-        if search_id:
-            for key in ("Value", "WideValue"):
-                try:
-                    dialog.GetBlockProperties(search_id).SetString(key, "")
-                except Exception:
-                    pass
-        if skip_id:
-            try:
-                dialog.GetBlockProperties(skip_id).SetLogical("Value", False)
-            except Exception:
-                pass
+        _clear_remembered_state()
 
     def _notify_shown():
         if on_shown is not None:
@@ -188,10 +218,15 @@ def choose_from_list(dlx_path, list_id, items, heading=None, heading_id=None, sk
                 pass
 
     def shown_cb():
+        # NX has restored its remembered values by now: clear them, and make sure the list shows
+        # everything (a remembered search text must not leave it filtered).
+        _clear_remembered_state()
+        _show_items(items)
         _notify_shown()
 
     def update_cb(block):
         captured["skip"] = _skip_value()
+        captured["cancel"] = _cancel_value()
         if search_id:
             try:
                 _refilter()
@@ -212,6 +247,7 @@ def choose_from_list(dlx_path, list_id, items, heading=None, heading_id=None, sk
                 chosen = None
         captured["item"] = chosen
         captured["skip"] = _skip_value()
+        captured["cancel"] = _cancel_value()
         return 0
 
     def ok_cb():
@@ -219,6 +255,7 @@ def choose_from_list(dlx_path, list_id, items, heading=None, heading_id=None, sk
 
     def cancel_cb():
         captured["skip"] = _skip_value()
+        captured["cancel"] = _cancel_value()
         return 0
 
     dialog.AddInitializeHandler(initialize_cb)
@@ -231,6 +268,8 @@ def choose_from_list(dlx_path, list_id, items, heading=None, heading_id=None, sk
     try:
         _notify_shown()
         response = dialog.Show()
+        if captured["cancel"]:
+            raise UserCancelled("the user cancelled the whole operation")
         if response != NXOpen.Selection.Response.Ok:
             return None, captured["skip"]
         return captured["item"], captured["skip"]
