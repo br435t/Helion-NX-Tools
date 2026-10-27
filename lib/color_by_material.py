@@ -83,6 +83,7 @@ def _load_material_libraries():
 # Public names, for other modules (lib/part_materials.py).
 load_material_names = _load_material_names
 load_material_libraries = _load_material_libraries
+load_material_styles = _load_material_styles
 
 
 _bad_colors = set()      # color cells that were neither hex nor an NX ID (reported once)
