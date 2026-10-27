@@ -45,5 +45,7 @@ NX-Scripts/ARCHIVE/
 # Installed release marker written by update.bat (local only)
 .installed_version
 
-# Recorded NX journals (yours and the reference ones): one local-only folder, never committed
-example_journals/
+# Recorded NX journals (yours and the reference ones): the folder exists in the repo (README.md),
+# its contents are local-only and never committed
+example_journals/*
+!example_journals/README.md
