@@ -78,7 +78,8 @@ the folder tree and adds it to `sys.path`, so it finds `lib/` and\
   already have, colors them to match and updates the part's mass properties. Highlights the bodies; one undo step; nothing saved.
 - **[Export Body DXF](NX-Scripts/Export-Body-DXF/README.md)** — for each solid body of the part, saves a view square-on
   to its largest flat face (`DXF_<BODYNAME>`, zoomed to fit) and exports the body to
-  `output/<partID>_<revision>_<bodyname>.dxf` with all edges shown. Not yet confirmed in NX.
+  `output/<partID>_<revision>_<bodyname>.dxf` with all edges shown. `export_body_dxf_TC.py` also creates a
+  Teamcenter dataset per body.
 - **[Env Probe](NX-Scripts/Env-Probe/README.md)** — diagnostic that prints what NX sees\
   when it runs a script (script folder, `UGII_*` variables, `PYTHONPATH`, `sys.path`) to\
   trace the "Unable to append module directory path in PYTHONPATH" warning.

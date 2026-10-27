@@ -308,47 +308,80 @@ def _input_file(part):
     return "@DB/" + leaf if "/" in leaf else str(getattr(part, "FullPath", leaf))
 
 
+def _configure_exporter(creator, part, body, view_name):
+    """Settings shared by the file and Teamcenter exports (those the recorded File > Export >
+    AutoCAD DXF/DWG journals set): 2D, model data, the saved view, just this body."""
+    creator.AutoCADRevision = NXOpen.DxfdwgCreator.AutoCADRevisionOptions.R2004
+    creator.FlattenAssembly = False
+    creator.ExportScaleValue = 1.0
+    creator.InputFile = _input_file(part)
+    creator.ExportFrom = NXOpen.DxfdwgCreator.ExportFromOption.DisplayPart
+    creator.ExportData = NXOpen.DxfdwgCreator.ExportDataOption.Modeling
+    creator.ExportAs = NXOpen.DxfdwgCreator.ExportAsOption.TwoD
+    creator.OutputTo = NXOpen.DxfdwgCreator.OutputToOption.Modeling
+    creator.FileSaveFlag = False
+    creator.ViewList = '"{0}"'.format(view_name)      # the journal quotes view names: "Top"
+    creator.ExportSelectionBlock.SelectionScope = NXOpen.ObjectSelector.Scope.SelectedObjects
+    creator.ExportSelectionBlock.SelectionComp.Add(body)          # one object per call, as recorded
+    creator.ObjectTypes.Curves = True
+    creator.ObjectTypes.Annotations = True
+    creator.ObjectTypes.Structures = True
+    creator.LayerMask = "1-256"
+    creator.WidthFactorMode = NXOpen.DxfdwgCreator.WidthfactorMethodOptions.AutomaticCalculation
+
+
 def export_dxf(session, part, body, view_name, path):
-    """Export `body` as 2D DXF through the saved view `view_name` (all edges), to `path`."""
+    """Export `body` as 2D DXF through the saved view `view_name` (all edges), to the file `path`."""
     creator = session.DexManager.CreateDxfdwgCreator()
     try:
-        # settings the recorded File > Export > AutoCAD DXF/DWG journal sets
-        creator.AutoCADRevision = NXOpen.DxfdwgCreator.AutoCADRevisionOptions.R2004
-        creator.FlattenAssembly = False
-        creator.ExportScaleValue = 1.0
-        creator.InputFile = _input_file(part)
+        _configure_exporter(creator, part, body, view_name)
         creator.ExportDestination = NXOpen.BaseCreator.ExportDestinationOption.NativeFileSystem
-        creator.ExportFrom = NXOpen.DxfdwgCreator.ExportFromOption.DisplayPart
-        creator.ExportData = NXOpen.DxfdwgCreator.ExportDataOption.Modeling
-        creator.ExportAs = NXOpen.DxfdwgCreator.ExportAsOption.TwoD
-        creator.OutputTo = NXOpen.DxfdwgCreator.OutputToOption.Modeling
         creator.OutputFileType = NXOpen.DxfdwgCreator.OutputFileTypeOption.Dxf
-        creator.FileSaveFlag = False
-        creator.ViewList = '"{0}"'.format(view_name)      # the journal quotes view names: "Top"
-        creator.ExportSelectionBlock.SelectionScope = NXOpen.ObjectSelector.Scope.SelectedObjects
-        creator.ExportSelectionBlock.SelectionComp.Add(body)          # one object per call, as recorded
-        creator.ObjectTypes.Curves = True
-        creator.ObjectTypes.Annotations = True
-        creator.ObjectTypes.Structures = True
-        creator.LayerMask = "1-256"
-        creator.WidthFactorMode = NXOpen.DxfdwgCreator.WidthfactorMethodOptions.AutomaticCalculation
         creator.OutputFile = path
         creator.Commit()
     finally:
         creator.Destroy()
 
 
+def is_teamcenter_part(part):
+    """True when the part was opened from Teamcenter (its Leaf is "<number>/<revision>")."""
+    return "/" in str(getattr(part, "Leaf", "") or "")
+
+
+def export_dxf_to_teamcenter(session, part, body, view_name, dataset_name):
+    """Export `body` as 2D DXF through the saved view `view_name` into a Teamcenter dataset called
+    `dataset_name` under the part's item revision (recorded in example_journals/journal_export_dxf_TC.py).
+    What happens when that dataset already exists is up to NX/Teamcenter."""
+    if not is_teamcenter_part(part):
+        raise RuntimeError("'{0}' was not opened from Teamcenter, so there is no item revision to "
+                           "attach a dataset to".format(getattr(part, "Leaf", "?")))
+    creator = session.DexManager.CreateDxfdwgCreator()
+    try:
+        _configure_exporter(creator, part, body, view_name)
+        creator.ExportDestination = NXOpen.BaseCreator.ExportDestinationOption.Teamcenter
+        creator.DatasetName = dataset_name
+        creator.OutputFileExtension = "dxf"
+        creator.Commit()
+    finally:
+        creator.Destroy()
+
+
 # ----------------------------------------------------------------------------- the run
-def export_part_bodies(session, part, out_dir=None, log=None):
+def export_part_bodies(session, part, out_dir=None, log=None, teamcenter=False):
     """Export a DXF for every solid body of `part` (the work/displayed part).
 
     Returns a dict: exported [(body name, view name, path)], skipped [(body name, why)],
     failures [(body name, reason)], out_dir, note (about how the part ID was built, or None).
     `log(line)` receives progress lines (the Listing Window).
+
+    teamcenter=True also exports every body to a Teamcenter dataset (named like the file, without
+    ".dxf") after its local file; the dataset results are datasets [(body name, dataset name)] and
+    dataset_failures [(body name, reason)]. A Teamcenter failure never removes the local file.
     """
     log = log or (lambda line: None)
     out_dir = out_dir or OUTPUT_DIR
-    result = {"exported": [], "skipped": [], "failures": [], "out_dir": out_dir, "note": None}
+    result = {"exported": [], "skipped": [], "failures": [], "out_dir": out_dir, "note": None,
+              "datasets": [], "dataset_failures": []}
 
     number, rev, result["note"] = part_id(part)
     if result["note"]:
@@ -391,6 +424,15 @@ def export_part_bodies(session, part, out_dir=None, log=None):
                     name, path, view, planar[1],
                     ", largest face is curved ({0:.3f}); used the largest flat face".format(largest[1])
                     if substituted else ""))
+                if teamcenter:
+                    dataset = os.path.splitext(os.path.basename(path))[0]
+                    try:
+                        export_dxf_to_teamcenter(session, part, body, view, dataset)
+                        result["datasets"].append((name, dataset))
+                        log("    Teamcenter dataset {0}: OK".format(dataset))
+                    except Exception as ex:
+                        result["dataset_failures"].append((name, str(ex)))
+                        log("    Teamcenter dataset {0}: FAILED, {1}".format(dataset, ex))
             except Exception as ex:
                 result["failures"].append((name, str(ex)))
                 log("{0}: FAILED, {1}".format(name, ex))
