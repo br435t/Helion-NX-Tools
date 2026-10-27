@@ -34,6 +34,10 @@ Script: `NX-Scripts/Export-Body-DXF/export_body_dxf_TC.py`. Logic: `lib/body_dxf
   back (it is made wireframe only while the views are saved, so the part is not left in wireframe). NX can swap the
   saved copy in as the displayed view, so the restore is applied to the current work view as well.
 * Only solid bodies are exported; sheet bodies are listed as skipped.
+* **WAVE-linked bodies are skipped** (listed as "WAVE-linked body"): a body whose first feature is a WAVE link /
+  Linked Body. A body built locally that only had linked geometry used in it is still exported. The check looks for
+  a WaveLink feature or the feature type `LINKED_BODY`; if a linked body is not skipped on a real run, tell me what
+  `body.GetFeatures()[0].FeatureType` reports.
 * **Face normal:** taken from `UF Modl.AskFaceData` when this NX build has it (the first run showed it does not),
   otherwise from a temporary "dumb" Direction on the face (works for round faces too; it is deleted again), otherwise
   from the face's edge vertices, and for a round face (one vertex per circle) from the cylinder's seam edge, which

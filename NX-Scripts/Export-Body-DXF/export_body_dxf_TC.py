@@ -6,7 +6,8 @@
 # example_journals/journal_export_dxf_TC.py). The local DXF files are still written to the repo's output
 # folder. For each body of the WORK part: measure every face, take the largest flat face, save a view
 # looking straight at it (zoomed to fit) called DXF_<BODYNAME>, export the body through that view with all
-# edges shown. The Listing Window reports the result of both exports. Needs a part opened from Teamcenter.
+# edges shown. WAVE-linked bodies (created by a Linked Body feature) are skipped and listed.
+# The Listing Window reports the result of both exports. Needs a part opened from Teamcenter.
 # See README.md in this folder and lib/body_dxf.py for the implementation.
 import os
 import sys

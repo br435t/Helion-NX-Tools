@@ -17,7 +17,8 @@ import os
 import re
 
 import NXOpen
-import NXOpen.UF          # NX only creates NXOpen.UF once it is imported explicitly
+import NXOpen.Features    # NX only creates its submodules (UF, Features) once they are imported explicitly
+import NXOpen.UF
 
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "output")
 VIEW_PREFIX = "DXF_"
@@ -73,6 +74,27 @@ def dxf_path(out_dir, number, rev, name, used):
         candidate = "{0}_{1}".format(stem, n)
     used.add(candidate.lower())
     return os.path.join(out_dir, candidate + ".dxf")
+
+
+# ----------------------------------------------------------------------------- WAVE links
+WAVE_LINKED_REASON = "WAVE-linked body"
+
+
+def is_wave_linked(body):
+    """True when `body` was created by a WAVE link (a Linked Body): its first feature is a WaveLink
+    feature or has the feature type LINKED_BODY. A body built locally that only had linked geometry
+    used in it is not "linked". A feature list that cannot be read counts as not linked, so a failed
+    lookup never blocks an export."""
+    try:
+        features = list(body.GetFeatures())
+        if not features:
+            return False
+        first = features[0]
+        if isinstance(first, NXOpen.Features.WaveLink):
+            return True
+        return "LINKED_BODY" in str(first.FeatureType).upper()
+    except Exception:
+        return False
 
 
 # ----------------------------------------------------------------------------- faces
@@ -387,12 +409,17 @@ def export_part_bodies(session, part, out_dir=None, log=None, teamcenter=False):
     if result["note"]:
         log("Note: " + result["note"])
     bodies = [b for b in part.Bodies]
-    solids = [b for b in bodies if getattr(b, "IsSolidBody", False)]
-    for b in bodies:
-        if b not in solids:
-            result["skipped"].append((body_name(b, 0), "not a solid body"))
+    solids = []
+    for index, b in enumerate(bodies, 1):
+        if not getattr(b, "IsSolidBody", False):
+            result["skipped"].append((body_name(b, index), "not a solid body"))
+        elif is_wave_linked(b):
+            result["skipped"].append((body_name(b, index), WAVE_LINKED_REASON))
+            log("{0}: skipped, {1}.".format(body_name(b, index), WAVE_LINKED_REASON))
+        else:
+            solids.append(b)
     if not solids:
-        log("'{0}' has no solid bodies. Nothing to export.".format(part.Leaf))
+        log("'{0}' has no solid bodies to export.".format(part.Leaf))
         return result
     os.makedirs(out_dir, exist_ok=True)
 
