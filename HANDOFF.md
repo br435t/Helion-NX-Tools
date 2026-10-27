@@ -26,7 +26,7 @@ Organized by where the code runs:
   code run **outside NX** as a subprocess.
 - **`example_journals/`** — journals **recorded in NX** (Tools → Journal →
   Record), kept as reference for reverse-engineering NX Open calls. Not run
-  directly.
+  directly. **Git-ignored (local only)**, so it is not in a clone or a release.
 - **Repo root** — `setup.bat`, `requirements.txt`, `.venv/` (git-ignored), and
   the docs.
 

@@ -285,10 +285,10 @@ def _view_names(part):
     return names
 
 
-def create_face_view(session, part, face_normal, name):
+def create_face_view(session, part, face_normal, name, created=None):
     """Orient the work view square-on to the face, fit it, save it as view `name` and return the
     name actually used (a view already called `name` is deleted first; if NX will not delete it a
-    numbered name is used instead)."""
+    numbered name is used instead). If `created` is a list, the saved view is appended to it."""
     x, y, z = view_axes(face_normal)
     m = NXOpen.Matrix3x3()
     m.Xx, m.Xy, m.Xz = x
@@ -318,7 +318,9 @@ def create_face_view(session, part, face_normal, name):
             n += 1
             final = "{0}_{1}".format(name[:_MAX_VIEW_NAME - 3], n)
     # as recorded in example_journals/journal_face_normal.py; True copies the wireframe style to the saved view
-    part.Views.SaveAsPreservingCase(work, final, True, False)
+    saved = part.Views.SaveAsPreservingCase(work, final, True, False)
+    if created is not None:
+        created.append((final, saved))
     return final
 
 
@@ -424,6 +426,7 @@ def export_part_bodies(session, part, out_dir=None, log=None, teamcenter=False):
     os.makedirs(out_dir, exist_ok=True)
 
     used = set()
+    created_views = []                                # (name, view) of every DXF_ view saved in this run
     work_view = part.ModelingViews.WorkView
     original_state = _view_state(work_view)           # the views below are made wireframe; put it back after
     try:
@@ -443,7 +446,8 @@ def export_part_bodies(session, part, out_dir=None, log=None, teamcenter=False):
                 substituted = planar is not largest
                 normal = face_outward_normal(planar[0], body, part, session)
                 view = create_face_view(session, part, normal,
-                                        (VIEW_PREFIX + safe_name(name, upper=True))[:_MAX_VIEW_NAME])
+                                        (VIEW_PREFIX + safe_name(name, upper=True))[:_MAX_VIEW_NAME],
+                                        created_views)
                 path = dxf_path(out_dir, number, rev, name, used)
                 export_dxf(session, part, body, view, path)
                 result["exported"].append((name, view, path))
@@ -474,7 +478,30 @@ def export_part_bodies(session, part, out_dir=None, log=None, teamcenter=False):
             current = None
         if current is not None and current is not work_view:
             _restore_view_state(current, original_state)
+        # Every DXF_ view was saved as wireframe (so the export shows all edges); leave all of them,
+        # not just the one that happens to be displayed, as solid with edges. Done last so it wins
+        # over the restore above when the displayed view is one of them.
+        _show_solid_with_edges(part, created_views)
     return result
+
+
+def _show_solid_with_edges(part, created_views):
+    """Set every saved DXF_ view to shaded-with-edges (Fully Shaded). A view that no longer exists
+    (its body's export failed and was undone) is ignored."""
+    for name, view in created_views:
+        if view is None:
+            try:
+                view = next((v for v in part.ModelingViews if v.Name.upper() == name.upper()), None)
+            except Exception:
+                view = None
+        if view is None:
+            continue
+        try:
+            view.RenderingStyle = NXOpen.View.RenderingStyleType.ShadedWithEdges
+            view.ShadedDisplayType = NXOpen.View.ShadedDisplayModeType.FullyShaded
+            view.UpdateDisplay()
+        except Exception:
+            pass
 
 
 def _view_state(view):

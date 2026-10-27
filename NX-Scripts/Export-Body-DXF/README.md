@@ -30,9 +30,10 @@ Script: `NX-Scripts/Export-Body-DXF/export_body_dxf_TC.py`. Logic: `lib/body_dxf
   undo step (**Edit → Undo** removes that body's view); a body that fails is rolled back automatically.
   **Nothing is saved**.
 * Saving views and the DXF exporter have no feature Builder in NX Open, so the views are not features.
-* The work view is left looking at the last body's face, but its display style (rendering style and Shaded Type) is put
-  back (it is made wireframe only while the views are saved, so the part is not left in wireframe). NX can swap the
-  saved copy in as the displayed view, so the restore is applied to the current work view as well.
+* **Display style:** each `DXF_<BODYNAME>` view is wireframe only while its body is exported (so every edge shows).
+  When the run finishes, **all** the created views are set to solid with edges (Shaded With Edges, Fully Shaded), not
+  just the one NX is displaying. The work view you started in gets its own rendering style and Shaded Type back,
+  and it is left looking at the last body's face.
 * Only solid bodies are exported; sheet bodies are listed as skipped.
 * **WAVE-linked bodies are skipped** (listed as "WAVE-linked body"): a body whose first feature is a WAVE link /
   Linked Body. A body built locally that only had linked geometry used in it is still exported. The check looks for
