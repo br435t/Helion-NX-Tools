@@ -364,35 +364,76 @@ def export_part_bodies(session, part, out_dir=None, log=None):
     os.makedirs(out_dir, exist_ok=True)
 
     used = set()
-    for index, body in enumerate(solids, 1):
-        name = body_name(body, index)
-        mark = session.SetUndoMark(NXOpen.Session.MarkVisibility.Visible, "Export DXF " + name)
-        try:
-            rows = measure_faces(session, body)
-            largest, planar = pick_view_face(rows)
-            if largest is None:
-                raise RuntimeError("the body has no faces")
-            if planar is None:
-                result["skipped"].append((name, "no planar face to look at"))
-                log("{0}: skipped, no planar face.".format(name))
+    work_view = part.ModelingViews.WorkView
+    original_state = _view_state(work_view)           # the views below are made wireframe; put it back after
+    try:
+        for index, body in enumerate(solids, 1):
+            name = body_name(body, index)
+            mark = session.SetUndoMark(NXOpen.Session.MarkVisibility.Visible, "Export DXF " + name)
+            try:
+                rows = measure_faces(session, body)
+                largest, planar = pick_view_face(rows)
+                if largest is None:
+                    raise RuntimeError("the body has no faces")
+                if planar is None:
+                    result["skipped"].append((name, "no planar face to look at"))
+                    log("{0}: skipped, no planar face.".format(name))
+                    _rollback(session, mark)
+                    continue
+                substituted = planar is not largest
+                normal = face_outward_normal(planar[0], body, part, session)
+                view = create_face_view(session, part, normal,
+                                        (VIEW_PREFIX + safe_name(name, upper=True))[:_MAX_VIEW_NAME])
+                path = dxf_path(out_dir, number, rev, name, used)
+                export_dxf(session, part, body, view, path)
+                result["exported"].append((name, view, path))
+                log("{0}: {1}  (view {2}, face area {3:.3f}{4})".format(
+                    name, path, view, planar[1],
+                    ", largest face is curved ({0:.3f}); used the largest flat face".format(largest[1])
+                    if substituted else ""))
+            except Exception as ex:
+                result["failures"].append((name, str(ex)))
+                log("{0}: FAILED, {1}".format(name, ex))
                 _rollback(session, mark)
-                continue
-            substituted = planar is not largest
-            normal = face_outward_normal(planar[0], body, part, session)
-            view = create_face_view(session, part, normal,
-                                    (VIEW_PREFIX + safe_name(name, upper=True))[:_MAX_VIEW_NAME])
-            path = dxf_path(out_dir, number, rev, name, used)
-            export_dxf(session, part, body, view, path)
-            result["exported"].append((name, view, path))
-            log("{0}: {1}  (view {2}, face area {3:.3f}{4})".format(
-                name, path, view, planar[1],
-                ", largest face is curved ({0:.3f}); used the largest flat face".format(largest[1])
-                if substituted else ""))
-        except Exception as ex:
-            result["failures"].append((name, str(ex)))
-            log("{0}: FAILED, {1}".format(name, ex))
-            _rollback(session, mark)
+    finally:
+        # Saving a view can make the saved copy the displayed work view, so restore whichever
+        # view is the work view now as well as the one we started in.
+        _restore_view_state(work_view, original_state)
+        try:
+            current = part.ModelingViews.WorkView
+        except Exception:
+            current = None
+        if current is not None and current is not work_view:
+            _restore_view_state(current, original_state)
     return result
+
+
+def _view_state(view):
+    """(rendering style, shaded display type) of a view; either may be None if unreadable."""
+    state = []
+    for attr in ("RenderingStyle", "ShadedDisplayType"):
+        try:
+            state.append(getattr(view, attr))
+        except Exception:
+            state.append(None)
+    return tuple(state)
+
+
+def _restore_view_state(view, state):
+    """Put a view back in the display style it had before the export (not wireframe): the rendering
+    style, then Shaded Type (the recorded journal_SOLID_DISPLAY.py sets ShadedDisplayType)."""
+    style, shaded = state
+    for attr, value in (("RenderingStyle", style), ("ShadedDisplayType", shaded)):
+        if value is None:
+            continue
+        try:
+            setattr(view, attr, value)
+        except Exception:
+            pass
+    try:
+        view.UpdateDisplay()
+    except Exception:
+        pass
 
 
 def _rollback(session, mark):
