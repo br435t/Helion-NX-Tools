@@ -3,12 +3,12 @@
 NX Open (Python) script for **NX 2506**. For **every solid body** of the work part it writes a flat **DXF**
 of that body, seen **square-on to its largest flat face**, with all edges shown.
 
-Script: `NX-Scripts/Export-Body-DXF/export_body_dxf.py`. Logic: `lib/body_dxf.py`.
+Script: `NX-Scripts/Export-Body-DXF/export_body_dxf_TC.py`. Logic: `lib/body_dxf.py`.
 
 ## Run it
 
 1. Open the part in **NX 2506** and make it the **displayed** (and work) part.
-2. **File → Execute → NX Open…** and pick `export_body_dxf.py`.
+2. **File → Execute → NX Open…** and pick `export_body_dxf_TC.py`.
 3. Read the **Listing Window**: one line per body with its file, view and face area, then the folder.
 
 ## What it does, per solid body
@@ -30,10 +30,15 @@ Script: `NX-Scripts/Export-Body-DXF/export_body_dxf.py`. Logic: `lib/body_dxf.py
   undo step (**Edit → Undo** removes that body's view); a body that fails is rolled back automatically.
   **Nothing is saved**.
 * Saving views and the DXF exporter have no feature Builder in NX Open, so the views are not features.
-* The work view is left looking at the last body's face, but its display style (rendering style and Shaded Type) is put
-  back (it is made wireframe only while the views are saved, so the part is not left in wireframe). NX can swap the
-  saved copy in as the displayed view, so the restore is applied to the current work view as well.
+* **Display style:** each `DXF_<BODYNAME>` view is wireframe only while its body is exported (so every edge shows).
+  When the run finishes, **all** the created views are set to solid with edges (Shaded With Edges, Fully Shaded), not
+  just the one NX is displaying. The work view you started in gets its own rendering style and Shaded Type back,
+  and it is left looking at the last body's face.
 * Only solid bodies are exported; sheet bodies are listed as skipped.
+* **WAVE-linked bodies are skipped** (listed as "WAVE-linked body"): a body whose first feature is a WAVE link /
+  Linked Body. A body built locally that only had linked geometry used in it is still exported. The check looks for
+  a WaveLink feature or the feature type `LINKED_BODY`; if a linked body is not skipped on a real run, tell me what
+  `body.GetFeatures()[0].FeatureType` reports.
 * **Face normal:** taken from `UF Modl.AskFaceData` when this NX build has it (the first run showed it does not),
   otherwise from a temporary "dumb" Direction on the face (works for round faces too; it is deleted again), otherwise
   from the face's edge vertices, and for a round face (one vertex per circle) from the cylinder's seam edge, which
@@ -44,3 +49,20 @@ Script: `NX-Scripts/Export-Body-DXF/export_body_dxf.py`. Logic: `lib/body_dxf.py
   (views saved as in `journal_face_normal.py`; view names quoted as `"DXF_NAME"`, one `SelectionComp.Add(body)` per body, curves/annotations/structures,
   layers 1-256). The journal exported 3D curves without setting 2D, so `ExportAs = TwoD` with the view, and the
   "all edges" wireframe setting, are still unverified.
+
+## Teamcenter version: `export_body_dxf_TC.py`
+
+Does everything above and **also exports each body to Teamcenter** as a DXF **dataset** under the part's item
+revision, following the recorded `example_journals/journal_export_dxf_TC.py`.
+
+* Each body is exported **twice** from the same saved `DXF_<BODYNAME>` view (the exporter has one destination per
+  run): first the local file in `output/`, then the Teamcenter dataset.
+* The dataset is named **`<partID>_<revision>_<bodyname>`**, the same as the file without `.dxf` (`_2`, `_3` for a
+  repeated body name).
+* Needs a part **opened from Teamcenter** (name like `1152112-001/01`) with write access to the item revision; a
+  native-file part is refused with a message.
+* If a dataset of that name already exists, whatever NX/Teamcenter does is what happens, and the result is reported.
+* A Teamcenter failure for one body keeps that body's local file and does not stop the other bodies.
+* The **Listing Window** reports both results: a line per body and dataset, then `Local DXF files: N of M written to
+  ...output`, `Teamcenter datasets: N of M created on <part>`, the datasets, and any skipped or failed bodies.
+* Unverified until run on a Teamcenter part: several datasets on one revision, and the existing-dataset behaviour.

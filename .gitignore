@@ -45,5 +45,7 @@ NX-Scripts/ARCHIVE/
 # Installed release marker written by update.bat (local only)
 .installed_version
 
-# Test exports written by the recorded DXF journal (generated, local only)
-example_journals/DXF_export_output/
+# Recorded NX journals (yours and the reference ones): the folder exists in the repo (README.md),
+# its contents are local-only and never committed
+example_journals/*
+!example_journals/README.md

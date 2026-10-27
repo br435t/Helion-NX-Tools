@@ -17,7 +17,8 @@ import os
 import re
 
 import NXOpen
-import NXOpen.UF          # NX only creates NXOpen.UF once it is imported explicitly
+import NXOpen.Features    # NX only creates its submodules (UF, Features) once they are imported explicitly
+import NXOpen.UF
 
 OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "output")
 VIEW_PREFIX = "DXF_"
@@ -73,6 +74,27 @@ def dxf_path(out_dir, number, rev, name, used):
         candidate = "{0}_{1}".format(stem, n)
     used.add(candidate.lower())
     return os.path.join(out_dir, candidate + ".dxf")
+
+
+# ----------------------------------------------------------------------------- WAVE links
+WAVE_LINKED_REASON = "WAVE-linked body"
+
+
+def is_wave_linked(body):
+    """True when `body` was created by a WAVE link (a Linked Body): its first feature is a WaveLink
+    feature or has the feature type LINKED_BODY. A body built locally that only had linked geometry
+    used in it is not "linked". A feature list that cannot be read counts as not linked, so a failed
+    lookup never blocks an export."""
+    try:
+        features = list(body.GetFeatures())
+        if not features:
+            return False
+        first = features[0]
+        if isinstance(first, NXOpen.Features.WaveLink):
+            return True
+        return "LINKED_BODY" in str(first.FeatureType).upper()
+    except Exception:
+        return False
 
 
 # ----------------------------------------------------------------------------- faces
@@ -263,10 +285,10 @@ def _view_names(part):
     return names
 
 
-def create_face_view(session, part, face_normal, name):
+def create_face_view(session, part, face_normal, name, created=None):
     """Orient the work view square-on to the face, fit it, save it as view `name` and return the
     name actually used (a view already called `name` is deleted first; if NX will not delete it a
-    numbered name is used instead)."""
+    numbered name is used instead). If `created` is a list, the saved view is appended to it."""
     x, y, z = view_axes(face_normal)
     m = NXOpen.Matrix3x3()
     m.Xx, m.Xy, m.Xz = x
@@ -296,7 +318,9 @@ def create_face_view(session, part, face_normal, name):
             n += 1
             final = "{0}_{1}".format(name[:_MAX_VIEW_NAME - 3], n)
     # as recorded in example_journals/journal_face_normal.py; True copies the wireframe style to the saved view
-    part.Views.SaveAsPreservingCase(work, final, True, False)
+    saved = part.Views.SaveAsPreservingCase(work, final, True, False)
+    if created is not None:
+        created.append((final, saved))
     return final
 
 
@@ -308,62 +332,101 @@ def _input_file(part):
     return "@DB/" + leaf if "/" in leaf else str(getattr(part, "FullPath", leaf))
 
 
+def _configure_exporter(creator, part, body, view_name):
+    """Settings shared by the file and Teamcenter exports (those the recorded File > Export >
+    AutoCAD DXF/DWG journals set): 2D, model data, the saved view, just this body."""
+    creator.AutoCADRevision = NXOpen.DxfdwgCreator.AutoCADRevisionOptions.R2004
+    creator.FlattenAssembly = False
+    creator.ExportScaleValue = 1.0
+    creator.InputFile = _input_file(part)
+    creator.ExportFrom = NXOpen.DxfdwgCreator.ExportFromOption.DisplayPart
+    creator.ExportData = NXOpen.DxfdwgCreator.ExportDataOption.Modeling
+    creator.ExportAs = NXOpen.DxfdwgCreator.ExportAsOption.TwoD
+    creator.OutputTo = NXOpen.DxfdwgCreator.OutputToOption.Modeling
+    creator.FileSaveFlag = False
+    creator.ViewList = '"{0}"'.format(view_name)      # the journal quotes view names: "Top"
+    creator.ExportSelectionBlock.SelectionScope = NXOpen.ObjectSelector.Scope.SelectedObjects
+    creator.ExportSelectionBlock.SelectionComp.Add(body)          # one object per call, as recorded
+    creator.ObjectTypes.Curves = True
+    creator.ObjectTypes.Annotations = True
+    creator.ObjectTypes.Structures = True
+    creator.LayerMask = "1-256"
+    creator.WidthFactorMode = NXOpen.DxfdwgCreator.WidthfactorMethodOptions.AutomaticCalculation
+
+
 def export_dxf(session, part, body, view_name, path):
-    """Export `body` as 2D DXF through the saved view `view_name` (all edges), to `path`."""
+    """Export `body` as 2D DXF through the saved view `view_name` (all edges), to the file `path`."""
     creator = session.DexManager.CreateDxfdwgCreator()
     try:
-        # settings the recorded File > Export > AutoCAD DXF/DWG journal sets
-        creator.AutoCADRevision = NXOpen.DxfdwgCreator.AutoCADRevisionOptions.R2004
-        creator.FlattenAssembly = False
-        creator.ExportScaleValue = 1.0
-        creator.InputFile = _input_file(part)
+        _configure_exporter(creator, part, body, view_name)
         creator.ExportDestination = NXOpen.BaseCreator.ExportDestinationOption.NativeFileSystem
-        creator.ExportFrom = NXOpen.DxfdwgCreator.ExportFromOption.DisplayPart
-        creator.ExportData = NXOpen.DxfdwgCreator.ExportDataOption.Modeling
-        creator.ExportAs = NXOpen.DxfdwgCreator.ExportAsOption.TwoD
-        creator.OutputTo = NXOpen.DxfdwgCreator.OutputToOption.Modeling
         creator.OutputFileType = NXOpen.DxfdwgCreator.OutputFileTypeOption.Dxf
-        creator.FileSaveFlag = False
-        creator.ViewList = '"{0}"'.format(view_name)      # the journal quotes view names: "Top"
-        creator.ExportSelectionBlock.SelectionScope = NXOpen.ObjectSelector.Scope.SelectedObjects
-        creator.ExportSelectionBlock.SelectionComp.Add(body)          # one object per call, as recorded
-        creator.ObjectTypes.Curves = True
-        creator.ObjectTypes.Annotations = True
-        creator.ObjectTypes.Structures = True
-        creator.LayerMask = "1-256"
-        creator.WidthFactorMode = NXOpen.DxfdwgCreator.WidthfactorMethodOptions.AutomaticCalculation
         creator.OutputFile = path
         creator.Commit()
     finally:
         creator.Destroy()
 
 
+def is_teamcenter_part(part):
+    """True when the part was opened from Teamcenter (its Leaf is "<number>/<revision>")."""
+    return "/" in str(getattr(part, "Leaf", "") or "")
+
+
+def export_dxf_to_teamcenter(session, part, body, view_name, dataset_name):
+    """Export `body` as 2D DXF through the saved view `view_name` into a Teamcenter dataset called
+    `dataset_name` under the part's item revision (recorded in example_journals/journal_export_dxf_TC.py).
+    What happens when that dataset already exists is up to NX/Teamcenter."""
+    if not is_teamcenter_part(part):
+        raise RuntimeError("'{0}' was not opened from Teamcenter, so there is no item revision to "
+                           "attach a dataset to".format(getattr(part, "Leaf", "?")))
+    creator = session.DexManager.CreateDxfdwgCreator()
+    try:
+        _configure_exporter(creator, part, body, view_name)
+        creator.ExportDestination = NXOpen.BaseCreator.ExportDestinationOption.Teamcenter
+        creator.DatasetName = dataset_name
+        creator.OutputFileExtension = "dxf"
+        creator.Commit()
+    finally:
+        creator.Destroy()
+
+
 # ----------------------------------------------------------------------------- the run
-def export_part_bodies(session, part, out_dir=None, log=None):
+def export_part_bodies(session, part, out_dir=None, log=None, teamcenter=False):
     """Export a DXF for every solid body of `part` (the work/displayed part).
 
     Returns a dict: exported [(body name, view name, path)], skipped [(body name, why)],
     failures [(body name, reason)], out_dir, note (about how the part ID was built, or None).
     `log(line)` receives progress lines (the Listing Window).
+
+    teamcenter=True also exports every body to a Teamcenter dataset (named like the file, without
+    ".dxf") after its local file; the dataset results are datasets [(body name, dataset name)] and
+    dataset_failures [(body name, reason)]. A Teamcenter failure never removes the local file.
     """
     log = log or (lambda line: None)
     out_dir = out_dir or OUTPUT_DIR
-    result = {"exported": [], "skipped": [], "failures": [], "out_dir": out_dir, "note": None}
+    result = {"exported": [], "skipped": [], "failures": [], "out_dir": out_dir, "note": None,
+              "datasets": [], "dataset_failures": []}
 
     number, rev, result["note"] = part_id(part)
     if result["note"]:
         log("Note: " + result["note"])
     bodies = [b for b in part.Bodies]
-    solids = [b for b in bodies if getattr(b, "IsSolidBody", False)]
-    for b in bodies:
-        if b not in solids:
-            result["skipped"].append((body_name(b, 0), "not a solid body"))
+    solids = []
+    for index, b in enumerate(bodies, 1):
+        if not getattr(b, "IsSolidBody", False):
+            result["skipped"].append((body_name(b, index), "not a solid body"))
+        elif is_wave_linked(b):
+            result["skipped"].append((body_name(b, index), WAVE_LINKED_REASON))
+            log("{0}: skipped, {1}.".format(body_name(b, index), WAVE_LINKED_REASON))
+        else:
+            solids.append(b)
     if not solids:
-        log("'{0}' has no solid bodies. Nothing to export.".format(part.Leaf))
+        log("'{0}' has no solid bodies to export.".format(part.Leaf))
         return result
     os.makedirs(out_dir, exist_ok=True)
 
     used = set()
+    created_views = []                                # (name, view) of every DXF_ view saved in this run
     work_view = part.ModelingViews.WorkView
     original_state = _view_state(work_view)           # the views below are made wireframe; put it back after
     try:
@@ -383,7 +446,8 @@ def export_part_bodies(session, part, out_dir=None, log=None):
                 substituted = planar is not largest
                 normal = face_outward_normal(planar[0], body, part, session)
                 view = create_face_view(session, part, normal,
-                                        (VIEW_PREFIX + safe_name(name, upper=True))[:_MAX_VIEW_NAME])
+                                        (VIEW_PREFIX + safe_name(name, upper=True))[:_MAX_VIEW_NAME],
+                                        created_views)
                 path = dxf_path(out_dir, number, rev, name, used)
                 export_dxf(session, part, body, view, path)
                 result["exported"].append((name, view, path))
@@ -391,6 +455,15 @@ def export_part_bodies(session, part, out_dir=None, log=None):
                     name, path, view, planar[1],
                     ", largest face is curved ({0:.3f}); used the largest flat face".format(largest[1])
                     if substituted else ""))
+                if teamcenter:
+                    dataset = os.path.splitext(os.path.basename(path))[0]
+                    try:
+                        export_dxf_to_teamcenter(session, part, body, view, dataset)
+                        result["datasets"].append((name, dataset))
+                        log("    Teamcenter dataset {0}: OK".format(dataset))
+                    except Exception as ex:
+                        result["dataset_failures"].append((name, str(ex)))
+                        log("    Teamcenter dataset {0}: FAILED, {1}".format(dataset, ex))
             except Exception as ex:
                 result["failures"].append((name, str(ex)))
                 log("{0}: FAILED, {1}".format(name, ex))
@@ -405,7 +478,30 @@ def export_part_bodies(session, part, out_dir=None, log=None):
             current = None
         if current is not None and current is not work_view:
             _restore_view_state(current, original_state)
+        # Every DXF_ view was saved as wireframe (so the export shows all edges); leave all of them,
+        # not just the one that happens to be displayed, as solid with edges. Done last so it wins
+        # over the restore above when the displayed view is one of them.
+        _show_solid_with_edges(part, created_views)
     return result
+
+
+def _show_solid_with_edges(part, created_views):
+    """Set every saved DXF_ view to shaded-with-edges (Fully Shaded). A view that no longer exists
+    (its body's export failed and was undone) is ignored."""
+    for name, view in created_views:
+        if view is None:
+            try:
+                view = next((v for v in part.ModelingViews if v.Name.upper() == name.upper()), None)
+            except Exception:
+                view = None
+        if view is None:
+            continue
+        try:
+            view.RenderingStyle = NXOpen.View.RenderingStyleType.ShadedWithEdges
+            view.ShadedDisplayType = NXOpen.View.ShadedDisplayModeType.FullyShaded
+            view.UpdateDisplay()
+        except Exception:
+            pass
 
 
 def _view_state(view):
