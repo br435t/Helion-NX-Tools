@@ -30,7 +30,9 @@ Script: `NX-Scripts/Export-Body-DXF/export_body_dxf.py`. Logic: `lib/body_dxf.py
   undo step (**Edit → Undo** removes that body's view); a body that fails is rolled back automatically.
   **Nothing is saved**.
 * Saving views and the DXF exporter have no feature Builder in NX Open, so the views are not features.
-* The work view is left looking at the last body's face.
+* The work view is left looking at the last body's face, but its display style (rendering style and Shaded Type) is put
+  back (it is made wireframe only while the views are saved, so the part is not left in wireframe). NX can swap the
+  saved copy in as the displayed view, so the restore is applied to the current work view as well.
 * Only solid bodies are exported; sheet bodies are listed as skipped.
 * **Face normal:** taken from `UF Modl.AskFaceData` when this NX build has it (the first run showed it does not),
   otherwise from a temporary "dumb" Direction on the face (works for round faces too; it is deleted again), otherwise
