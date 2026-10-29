@@ -64,9 +64,6 @@ the folder tree and adds it to `sys.path`, so it finds `lib/` and\
   McMaster-Carr part number; it scrapes the product data, downloads the CAD,\
   creates a `BE9_COTS` part in Teamcenter, and imports the geometry. See its\
   [README](NX-Scripts/Create-McMaster-Part/README.md) for setup and usage.
-- **[List Assembly Components](NX-Scripts/List-Assembly-Components/list_assembly_components.py)** —\
-  walks the displayed assembly and writes every component, its bodies and their\
-  NX material to `output/<part>_components.txt`, with a quantity-by-part summary.
 - **[Color By Material](NX-Scripts/Color-By-Material/README.md)** — colors every\
   body by its NX material using the hex codes in `Materials/NX_Materials.csv`.\
   `color_by_material.py` clears assembly color overrides first;\
